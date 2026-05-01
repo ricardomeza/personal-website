@@ -33,11 +33,11 @@ export function easeFor(phase) {
   return (t) => t;
 }
 
-export function createStateMachine({ onPhaseEnter }) {
+export function createStateMachine({ onPhaseEnter, initialPhase = PHASE.SHAPE_HOLD, initialShapeIndex = 0 }) {
   const state = {
-    phase: PHASE.SHAPE_HOLD,
+    phase: initialPhase,
     elapsed: 0,
-    shapeIndex: 0,
+    shapeIndex: initialShapeIndex,
   };
 
   function advancePhase() {

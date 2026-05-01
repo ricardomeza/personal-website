@@ -32,15 +32,6 @@ const camera = new PerspectiveCamera(
 camera.position.set(0, 1.5, 8);
 camera.lookAt(0, 0, 0);
 
-const initialPositions = shapeGenerators[0](PARTICLE_COUNT);
-const particles = createParticles({
-  count: PARTICLE_COUNT,
-  initialPositions,
-  pixelRatio,
-});
-scene.add(particles.points);
-
-let currentTarget = initialPositions;
 const cameraTilt = Math.atan2(camera.position.y, camera.position.z);
 const cameraDist = Math.hypot(camera.position.y, camera.position.z);
 
@@ -51,16 +42,30 @@ function viewportGridSize() {
   return { width, height };
 }
 
+// Start with full-screen grid; will morph into black hole immediately
+const initialPositions = grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() });
+const particles = createParticles({
+  count: PARTICLE_COUNT,
+  initialPositions,
+  pixelRatio,
+});
+scene.add(particles.points);
+
+let currentTarget = initialPositions;
+
 function applyTarget(positions) {
   particles.setTarget(positions);
   currentTarget = positions;
 }
 
+// First morph target is black hole (index 1)
+applyTarget(shapeGenerators[1](PARTICLE_COUNT));
+
 const machine = createStateMachine({
+  initialPhase: PHASE.MORPH_TO_NEXT,
+  initialShapeIndex: 1,
   onPhaseEnter(state) {
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
-      // Bake any accumulated Y-rotation into the geometry, then reset rotation
-      // to 0 so the grid lands viewport-aligned and stays still.
       particles.bakeYRotation(particles.points.rotation.y);
       particles.points.rotation.y = 0;
       applyTarget(grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }));
