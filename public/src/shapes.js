@@ -6,23 +6,33 @@ function gaussian() {
 
 export function galaxy(count) {
   const positions = new Float32Array(count * 3);
+  let idx = 0;
   const ARMS = 4;
   const TWIST = 2.4;
   const R = 4.2;
-  for (let i = 0; i < count; i++) {
-    const arm = i % ARMS;
+
+  // Dense central bulge — bright nucleus packed tight at the core
+  const coreCount = Math.floor(count * 0.15);
+  for (let i = 0; i < coreCount; i++, idx++) {
+    const r = Math.pow(Math.random(), 2.0) * 0.75;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.45;
+    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+
+  // Spiral arms
+  for (let arm = 0; idx < count; arm = (arm + 1) % ARMS, idx++) {
     const r = Math.sqrt(Math.random()) * R;
     const baseAngle = (arm * Math.PI * 2) / ARMS;
     const jitter = (Math.random() - 0.5) * 0.35;
     const theta = baseAngle + r * TWIST + jitter;
-    const x = Math.cos(theta) * r;
-    const z = Math.sin(theta) * r;
-    const bulge = Math.exp(-r * 0.6) * 0.8;
-    const y = gaussian() * (0.04 * r + bulge * 0.4);
-    positions[i * 3 + 0] = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
+    positions[idx * 3 + 0] = Math.cos(theta) * r;
+    positions[idx * 3 + 1] = gaussian() * 0.04 * r;
+    positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
+
   return positions;
 }
 
@@ -81,39 +91,48 @@ export function blackHole(count) {
 
 export function solarSystem(count) {
   const positions = new Float32Array(count * 3);
+  let idx = 0;
+
+  // Dense sun at center — bright stellar core
+  const sunCount = Math.floor(count * 0.13);
+  for (let i = 0; i < sunCount; i++, idx++) {
+    const r = Math.pow(Math.random(), 2.0) * 0.38;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi);
+    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+
+  // Planetary orbital rings
   const orbits = [0.5, 0.95, 1.5, 2.1, 2.9, 3.7, 4.5];
   const weights = [0.6, 0.9, 1.0, 1.0, 1.2, 1.3, 1.4];
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   const starShare = 0.04;
-  for (let i = 0; i < count; i++) {
+  for (; idx < count; idx++) {
     if (Math.random() < starShare) {
       const r = 5.5 + Math.random() * 2.5;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.cos(phi);
-      positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+      positions[idx * 3 + 1] = r * Math.cos(phi);
+      positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
       continue;
     }
     let pick = Math.random() * totalWeight;
     let bucket = 0;
     for (let b = 0; b < weights.length; b++) {
       pick -= weights[b];
-      if (pick <= 0) {
-        bucket = b;
-        break;
-      }
+      if (pick <= 0) { bucket = b; break; }
     }
     const r = orbits[bucket] + gaussian() * 0.06;
     const theta = Math.random() * Math.PI * 2;
     const tilt = (Math.random() - 0.5) * 0.08;
-    const x = Math.cos(theta) * r;
-    const z = Math.sin(theta) * r;
-    const y = Math.sin(theta) * tilt + gaussian() * 0.02;
-    positions[i * 3 + 0] = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
+    positions[idx * 3 + 0] = Math.cos(theta) * r;
+    positions[idx * 3 + 1] = Math.sin(theta) * tilt + gaussian() * 0.02;
+    positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
+
   return positions;
 }
 
