@@ -76,6 +76,7 @@ applyTarget(shapeGenerators[1](PARTICLE_COUNT));
 const machine = createStateMachine({
   initialPhase: PHASE.MORPH_TO_NEXT,
   initialShapeIndex: 1,
+  shapeCount: shapeGenerators.length,
   onPhaseEnter(state) {
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
       particles.bakeYRotation(particles.points.rotation.y);
