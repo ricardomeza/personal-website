@@ -192,8 +192,8 @@ export function grid(count, { tilt = 0, width = 9, height = 9 } = {}) {
   for (let i = 0; i < count; i++) {
     const ix = i % cols;
     const iy = Math.floor(i / cols);
-    const x = ix * spacingX - halfX + (Math.random() - 0.5) * spacingX * 0.4;
-    const y = iy * spacingY - halfY + (Math.random() - 0.5) * spacingY * 0.4;
+    const x = ix * spacingX - halfX;
+    const y = iy * spacingY - halfY;
     positions[i * 3 + 0] = x;
     positions[i * 3 + 1] = y * cosT;
     positions[i * 3 + 2] = -y * sinT;
