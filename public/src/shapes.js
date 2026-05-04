@@ -40,49 +40,62 @@ export function blackHole(count) {
   const positions = new Float32Array(count * 3);
   let idx = 0;
 
-  // Dense singularity core — large spherical mass, rounder than a galaxy bulge
-  const coreCount = Math.floor(count * 0.28);
+  // Extremely dense compact core — appears white via additive blending saturation
+  const coreCount = Math.floor(count * 0.36);
   for (let i = 0; i < coreCount; i++, idx++) {
-    const r = Math.pow(Math.random(), 2.5) * 1.2;
+    const r = Math.pow(Math.random(), 3.5) * 0.24;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
     positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.7;
+    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.85;
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
-  // Accretion disk — flat ring feeding into the core, denser near center
-  const diskCount = Math.floor(count * 0.38);
-  for (let i = 0; i < diskCount; i++, idx++) {
-    const t = Math.pow(Math.random(), 2.0);
-    const r = 1.3 + t * 2.7;
+  // Tidal stream — logarithmic spiral arcing from lower-left around the core.
+  // t=0 is the far narrow tip, t=1 wraps tight around the core.
+  const streamCount = Math.floor(count * 0.52);
+  const outerR = 4.2;
+  const kSpiral = 2.3;
+  const startAngle = Math.PI * 1.15;  // ~207° — lower-left in XZ plane
+  const sweepAngle = -Math.PI * 1.6;  // 288° clockwise sweep
+
+  for (let i = 0; i < streamCount; i++, idx++) {
+    const t = Math.random();
+    const r = outerR * Math.exp(-kSpiral * t);
+    const angle = startAngle + sweepAngle * t;
+
+    const cx = Math.cos(angle) * r;
+    const cz = Math.sin(angle) * r;
+    const perpX = -Math.sin(angle);
+    const perpZ = Math.cos(angle);
+
+    // Narrow at the outer tip, slightly wider as it wraps in
+    const width = 0.03 + t * 0.2;
+    const scatter = (Math.random() - 0.5) * 2 * width;
+    const yScatter = gaussian() * 0.025 * (0.3 + t);
+
+    positions[idx * 3 + 0] = cx + perpX * scatter;
+    positions[idx * 3 + 1] = yScatter;
+    positions[idx * 3 + 2] = cz + perpZ * scatter;
+  }
+
+  // Circularized inner ring — matter that has completed its first orbit
+  const ringCount = Math.floor(count * 0.08);
+  for (let i = 0; i < ringCount; i++, idx++) {
+    const r = 0.18 + Math.pow(Math.random(), 1.5) * 0.45;
     const theta = Math.random() * Math.PI * 2;
     positions[idx * 3 + 0] = Math.cos(theta) * r;
-    positions[idx * 3 + 1] = gaussian() * 0.022 * (1 + r * 0.07);
+    positions[idx * 3 + 1] = gaussian() * 0.014;
     positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
 
-  // Gravitational lensing halo — high-inclination orbits arching above/below
-  const haloCount = Math.floor(count * 0.27);
-  for (let i = 0; i < haloCount; i++, idx++) {
-    const r = 0.8 + Math.random() * 0.9;
-    const theta = Math.random() * Math.PI * 2;
-    const incl = (0.35 + Math.random() * 0.65) * Math.PI * (Math.random() < 0.5 ? 1 : -1);
-    const sinI = Math.sin(incl);
-    const cosI = Math.cos(incl);
-    positions[idx * 3 + 0] = Math.cos(theta) * r;
-    positions[idx * 3 + 1] = Math.sin(theta) * r * sinI + gaussian() * 0.06;
-    positions[idx * 3 + 2] = Math.sin(theta) * r * cosI;
-  }
-
-  // Sparse outer dust
+  // Sparse outer debris (remaining ~4%)
   for (; idx < count; idx++) {
-    const r = 1.5 + Math.pow(Math.random(), 1.5) * 3.2;
+    const r = 1.6 + Math.pow(Math.random(), 2.0) * 2.0;
     const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.12;
-    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    positions[idx * 3 + 0] = Math.cos(theta) * r;
+    positions[idx * 3 + 1] = gaussian() * 0.05;
+    positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
 
   return positions;
