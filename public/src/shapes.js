@@ -40,23 +40,22 @@ export function blackHole(count) {
   const positions = new Float32Array(count * 3);
   let idx = 0;
 
-  // Dense singularity core — particles pile up toward center, representing
-  // the extreme mass concentration. Slightly flattened by the spin.
-  const coreCount = Math.floor(count * 0.18);
+  // Dense singularity core — large spherical mass, rounder than a galaxy bulge
+  const coreCount = Math.floor(count * 0.28);
   for (let i = 0; i < coreCount; i++, idx++) {
-    const r = Math.pow(Math.random(), 2.5) * 0.55;
+    const r = Math.pow(Math.random(), 2.5) * 1.2;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
     positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.35;
+    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.7;
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
   // Accretion disk — flat ring feeding into the core, denser near center
-  const diskCount = Math.floor(count * 0.48);
+  const diskCount = Math.floor(count * 0.38);
   for (let i = 0; i < diskCount; i++, idx++) {
     const t = Math.pow(Math.random(), 2.0);
-    const r = 0.6 + t * 3.4;
+    const r = 1.3 + t * 2.7;
     const theta = Math.random() * Math.PI * 2;
     positions[idx * 3 + 0] = Math.cos(theta) * r;
     positions[idx * 3 + 1] = gaussian() * 0.022 * (1 + r * 0.07);
