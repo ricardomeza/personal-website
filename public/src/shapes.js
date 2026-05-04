@@ -41,7 +41,7 @@ export function blackHole(count) {
   let idx = 0;
 
   // Extremely dense compact core — appears white via additive blending saturation
-  const coreCount = Math.floor(count * 0.36);
+  const coreCount = Math.floor(count * 0.32);
   for (let i = 0; i < coreCount; i++, idx++) {
     const r = Math.pow(Math.random(), 3.5) * 0.24;
     const theta = Math.random() * Math.PI * 2;
@@ -53,11 +53,35 @@ export function blackHole(count) {
 
   // Tidal stream — logarithmic spiral arcing from lower-left around the core.
   // t=0 is the far narrow tip, t=1 wraps tight around the core.
-  const streamCount = Math.floor(count * 0.52);
+  const streamCount = Math.floor(count * 0.38);
   const outerR = 4.2;
   const kSpiral = 2.3;
   const startAngle = Math.PI * 1.15;  // ~207° — lower-left in XZ plane
   const sweepAngle = -Math.PI * 1.6;  // 288° clockwise sweep
+
+  // Star being disrupted — small dense cluster at the outer tip of the stream
+  const starX = Math.cos(startAngle) * outerR;
+  const starZ = Math.sin(startAngle) * outerR;
+  const starCount = Math.floor(count * 0.07);
+  for (let i = 0; i < starCount; i++, idx++) {
+    const r = Math.pow(Math.random(), 2.5) * 0.18;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[idx * 3 + 0] = starX + r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi);
+    positions[idx * 3 + 2] = starZ + r * Math.sin(phi) * Math.sin(theta);
+  }
+
+  // Loose debris orbiting the disrupted star
+  const starDebrisCount = Math.floor(count * 0.05);
+  for (let i = 0; i < starDebrisCount; i++, idx++) {
+    const r = 0.25 + Math.pow(Math.random(), 1.2) * 1.8;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[idx * 3 + 0] = starX + r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.4;
+    positions[idx * 3 + 2] = starZ + r * Math.sin(phi) * Math.sin(theta);
+  }
 
   for (let i = 0; i < streamCount; i++, idx++) {
     const t = Math.random();
@@ -69,7 +93,6 @@ export function blackHole(count) {
     const perpX = -Math.sin(angle);
     const perpZ = Math.cos(angle);
 
-    // Narrow at the outer tip, slightly wider as it wraps in
     const width = 0.03 + t * 0.2;
     const scatter = (Math.random() - 0.5) * 2 * width;
     const yScatter = gaussian() * 0.025 * (0.3 + t);
@@ -80,7 +103,7 @@ export function blackHole(count) {
   }
 
   // Circularized inner ring — matter that has completed its first orbit
-  const ringCount = Math.floor(count * 0.08);
+  const ringCount = Math.floor(count * 0.06);
   for (let i = 0; i < ringCount; i++, idx++) {
     const r = 0.18 + Math.pow(Math.random(), 1.5) * 0.45;
     const theta = Math.random() * Math.PI * 2;
@@ -89,13 +112,22 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
 
-  // Sparse outer debris (remaining ~4%)
+  // Relativistic jets — two narrow columns expelled perpendicular to the disk
+  const jetCount = Math.floor(count * 0.08);
+  for (let i = 0; i < jetCount; i++, idx++) {
+    const sign = i < jetCount / 2 ? 1 : -1;
+    const y = Math.pow(Math.random(), 1.2) * 5.0 * sign;
+    const spread = Math.abs(y) * 0.045 + 0.02;
+    positions[idx * 3 + 0] = gaussian() * spread;
+    positions[idx * 3 + 1] = y;
+    positions[idx * 3 + 2] = gaussian() * spread;
+  }
+
+  // Remaining particles pad to count (rounding slack)
   for (; idx < count; idx++) {
-    const r = 1.6 + Math.pow(Math.random(), 2.0) * 2.0;
-    const theta = Math.random() * Math.PI * 2;
-    positions[idx * 3 + 0] = Math.cos(theta) * r;
-    positions[idx * 3 + 1] = gaussian() * 0.05;
-    positions[idx * 3 + 2] = Math.sin(theta) * r;
+    positions[idx * 3 + 0] = (Math.random() - 0.5) * 0.1;
+    positions[idx * 3 + 1] = (Math.random() - 0.5) * 0.1;
+    positions[idx * 3 + 2] = (Math.random() - 0.5) * 0.1;
   }
 
   return positions;
