@@ -21,17 +21,28 @@
   </head>
   <body>
     <canvas id="scene"></canvas>
-    <header class="brand">
-      <span class="brand__name">Ricardo Meza</span>
-      <span class="brand__cursor">_</span>
-    </header>
-    <nav class="links" aria-label="Profiles">
-      <a class="links__item" href="https://github.com/ricardomeza" target="_blank" rel="noopener noreferrer">github<span class="links__path">.com/ricardomeza</span></a>
-      <span class="links__sep" aria-hidden="true">▪</span>
-      <a class="links__item" href="https://x.com/ricardo_meza" target="_blank" rel="noopener noreferrer">x<span class="links__path">.com/ricardo_meza</span></a>
-      <span class="links__sep" aria-hidden="true">▪</span>
-      <a class="links__item" href="https://www.linkedin.com/in/ricardomeza/" target="_blank" rel="noopener noreferrer">linkedin<span class="links__path">.com/in/ricardomeza</span></a>
-    </nav>
+
+    <div id="terminal" role="region" aria-label="Terminal">
+      <!-- Spans intentionally on a single line — any whitespace between
+           them in source would render between prompt / typed / cursor. -->
+      <div id="terminal__output"></div>
+      <div id="terminal__input-row"><span id="terminal__prompt"></span><span id="terminal__typed"></span><span id="terminal__cursor" aria-hidden="true"></span></div>
+    </div>
+
+    <!-- Off-screen relay input: captures keyboard on desktop (autofocus)
+         and triggers the native keyboard on mobile (tap-to-focus). -->
+    <input
+      id="terminal__relay"
+      type="text"
+      autofocus
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      aria-hidden="true"
+      tabindex="-1"
+    />
+
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

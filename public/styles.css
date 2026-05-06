@@ -7,7 +7,7 @@ body {
   overflow: hidden;
   background: #0d0d0d;
   color: #9a9a9a;
-  font-family: "VT323", ui-monospace, "Menlo", monospace;
+  font-family: "VT323", "Cascadia Mono", "Menlo", "Consolas", ui-monospace, monospace;
 }
 
 #scene {
@@ -18,80 +18,116 @@ body {
   display: block;
 }
 
-.brand {
+/* ─── Relay input — off-screen, never visible ────────────────── */
+
+#terminal__relay {
   position: fixed;
-  top: 1.4rem;
-  left: 1.6rem;
-  z-index: 10;
-  font-size: 1.25rem;
-  letter-spacing: 0.06em;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ─── Terminal panel ──────────────────────────────────────────── */
+
+#terminal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 50vw;
+  height: 100vh;
+  z-index: 20;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  background: transparent;
+  padding: 1.4rem 1.6rem;
+  box-sizing: border-box;
+  font-family: "VT323", "Cascadia Mono", "Menlo", "Consolas", ui-monospace, monospace;
+  font-size: 1.1rem;
+  line-height: 1.5;
   color: #b3b3b3;
-  user-select: none;
-  pointer-events: none;
-  text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 1);
+}
+#terminal::-webkit-scrollbar { display: none; }
+
+/* ─── Input row — flows below output, like a real terminal ───── */
+
+#terminal__input-row {
+  display: block;
+  /* nowrap keeps the row on a single line; default white-space on the
+     parent prevents HTML-source line breaks from rendering between spans */
+  white-space: nowrap;
+  padding-top: 0.1rem;
 }
 
-.brand__name {
-  display: inline-block;
-}
-
-.brand__cursor {
-  display: inline-block;
-  margin-left: 0.15em;
-  animation: blink 1.05s steps(2, start) infinite;
+#terminal__prompt {
+  display: inline;
   color: #d6d6d6;
+  user-select: none;
+  /* Explicit gap so "> " always has a visible space */
+  padding-right: 0.3em;
+}
+
+#terminal__typed {
+  display: inline;
+  color: #d6d6d6;
+  /* Preserve any spaces inside the typed text */
+  white-space: pre;
+}
+
+/* Block cursor — sits inline right after the typed text */
+#terminal__cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.95em;
+  background: #d6d6d6;
+  vertical-align: text-bottom;
+  margin-bottom: 0.05em;
+  animation: blink 1.05s steps(2, start) infinite;
 }
 
 @keyframes blink {
-  to {
-    visibility: hidden;
-  }
+  to { visibility: hidden; }
 }
 
-.links {
-  position: fixed;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  left: 0;
-  right: 0;
-  z-index: 10;
-  padding: 0 1rem;
-  text-align: center;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+/* ─── Output area ─────────────────────────────────────────────── */
+
+#terminal__output {
+  display: block;
+  padding-top: 0.2rem;
 }
 
-.links__item {
-  color: #b3b3b3;
+.term-line {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.term-line--prompt { color: #9a9a9a; }
+.term-line--output { color: #9a9a9a; }
+.term-line--error  { color: #c0392b; }
+.term-line--dim    { color: #5a5a5a; }
+.term-line--bright { color: #d6d6d6; }
+.term-line--link a {
+  color: #9a9a9a;
   text-decoration: none;
-  transition: color 120ms linear;
 }
+.term-line--link a:hover { color: #f0f0f0; }
 
-.links__item:hover,
-.links__item:focus-visible {
-  color: #f0f0f0;
-  outline: none;
-}
-
-.links__sep {
-  display: inline-block;
-  margin: 0 0.5em;
-  color: #5a5a5a;
-}
+/* ─── Mobile ──────────────────────────────────────────────────── */
 
 @media (max-width: 540px) {
-  .brand {
-    top: 1rem;
-    left: 1rem;
-    font-size: 1rem;
-  }
-  .links {
-    font-size: 0.8rem;
-  }
-  .links__sep {
-    margin: 0 0.5em;
-  }
-  .links__path {
-    display: none;
+  #terminal {
+    width: 100vw;
+    font-size: 0.9rem;
+    padding: 1rem;
   }
 }

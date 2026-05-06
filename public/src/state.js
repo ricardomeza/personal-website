@@ -62,7 +62,15 @@ export function createStateMachine({ onPhaseEnter, initialPhase = PHASE.SHAPE_HO
     return state;
   }
 
-  return { state, tick };
+  // Reset to SHAPE_HOLD without triggering onPhaseEnter.
+  // Used after an externally-driven morph (e.g. text shape) so the normal
+  // hold → dissolve → next cycle runs from here.
+  function forceShapeHold() {
+    state.phase   = PHASE.SHAPE_HOLD;
+    state.elapsed = 0;
+  }
+
+  return { state, tick, forceShapeHold };
 }
 
 export function morphProgress(state) {

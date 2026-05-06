@@ -246,3 +246,59 @@ export function grid(count, { tilt = 0, width = 9, height = 9 } = {}) {
 }
 
 export const shapeGenerators = [galaxy, blackHole, solarSystem, earthAndMoon];
+
+// ─── Text shape ───────────────────────────────────────────────────────────────
+// Rasterises `text` onto an off-screen canvas and samples particle positions
+// from lit pixels.  Never added to shapeGenerators — only triggered explicitly.
+
+export function textShape(text, count) {
+  const W = 1024, H = 128;
+  const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 96px "VT323", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, W / 2, H / 2);
+
+  // Collect lit pixel coordinates as flat [x0, y0, x1, y1, ...] array
+  const { data } = ctx.getImageData(0, 0, W, H);
+  const litPixels = [];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (data[(y * W + x) * 4] > 128) litPixels.push(x, y);
+    }
+  }
+
+  const positions = new Float32Array(count * 3);
+
+  // Fallback: if the font isn't ready yet, scatter along a thin horizontal line
+  if (litPixels.length === 0) {
+    for (let i = 0; i < count; i++) {
+      positions[i * 3]     = (Math.random() - 0.5) * 6.4;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 0.1;
+      positions[i * 3 + 2] = 0;
+    }
+    return positions;
+  }
+
+  // Map pixel coords → world space.
+  // Camera: z=8, FOV 55° → horizontal extent at z=0 ≈ ±4.4 units.
+  // Use worldW=6.4 so text fills ~72% of the visible width with margin.
+  const worldW = 6.4;
+  const worldH = worldW * (H / W);   // ≈ 0.8 units tall
+  const pixelCount = litPixels.length / 2;
+
+  for (let i = 0; i < count; i++) {
+    const pick = Math.floor(Math.random() * pixelCount) * 2;
+    const px = litPixels[pick];
+    const py = litPixels[pick + 1];
+    positions[i * 3]     =  (px / W - 0.5) * worldW;
+    positions[i * 3 + 1] = -(py / H - 0.5) * worldH;
+    positions[i * 3 + 2] =  (Math.random() - 0.5) * 0.15;  // thin depth scatter
+  }
+  return positions;
+}

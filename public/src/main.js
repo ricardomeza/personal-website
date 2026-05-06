@@ -5,12 +5,13 @@ import {
   WebGLRenderer,
 } from "three";
 import { createParticles } from "./particles.js";
-import { shapeGenerators, grid } from "./shapes.js";
+import { shapeGenerators, grid, textShape } from "./shapes.js";
 import {
   PHASE,
   createStateMachine,
   morphProgress,
 } from "./state.js";
+import { Terminal } from "./terminal.js";
 
 const PARTICLE_COUNT = 20000;
 const BG = 0x0d0d0d;
@@ -92,15 +93,49 @@ const machine = createStateMachine({
 
 const clock = new Clock();
 
+// ─── Text-morph state ─────────────────────────────────────────────────────────
+// textShape is NEVER added to shapeGenerators — it only appears when the user
+// explicitly types "Ricardo Meza" in the terminal.
+let textMorphActive  = false;
+let textMorphT       = 0;    // 0 → 1 over ~1.5 s
+let textMorphPending = null; // holds the positions array until bake is done
+
+function triggerTextMorph() {
+  const positions = textShape('Ricardo Meza', PARTICLE_COUNT);
+  particles.bakeYRotation(particles.points.rotation.y);
+  particles.points.rotation.y = 0;
+  particles.setTarget(positions);
+  textMorphPending = positions;
+  textMorphActive  = true;
+  textMorphT       = 0;
+}
+
 function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
-  const state = machine.tick(dt);
 
-  if (state.phase === PHASE.SHAPE_HOLD) {
-    particles.points.rotation.y += dt * 0.06;
+  if (textMorphActive) {
+    textMorphT = Math.min(textMorphT + dt / 1.5, 1.0);
+    particles.setMorph(textMorphT);
+
+    if (textMorphT >= 1.0) {
+      // Morph-in complete — bake text positions into the position buffer so
+      // the GPU shader reads them at uMorph=0 (SHAPE_HOLD returns 0).
+      // setTarget swaps: position ← old aTarget (= textMorphPending), aTarget ← textMorphPending
+      particles.setTarget(textMorphPending);
+      currentTarget    = textMorphPending;
+      textMorphPending = null;
+      textMorphActive  = false;
+      // Hand control back to the state machine at SHAPE_HOLD so the normal
+      // hold (7 s) → dissolve to grid → next shape cycle runs from here.
+      machine.forceShapeHold();
+    }
+  } else {
+    const state = machine.tick(dt);
+    if (state.phase === PHASE.SHAPE_HOLD) {
+      particles.points.rotation.y += dt * 0.06;
+    }
+    particles.setMorph(morphProgress(state));
   }
-
-  particles.setMorph(morphProgress(state));
 
   // Smooth parallax — lerp camera toward mouse-driven offset, keep looking at origin
   par.x += (-mouseNorm.x * PAR_SCALE.x - par.x) * PAR_EASE;
@@ -125,3 +160,12 @@ window.addEventListener("resize", () => {
 });
 
 animate();
+
+new Terminal({
+  links: [
+    { label: 'github',   href: 'https://github.com/ricardomeza' },
+    { label: 'x',        href: 'https://x.com/ricardo_meza' },
+    { label: 'linkedin', href: 'https://www.linkedin.com/in/ricardomeza/' },
+  ],
+  onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
+});
