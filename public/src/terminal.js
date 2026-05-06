@@ -7,11 +7,14 @@ const HOSTNAME = window.location.hostname || 'ricardomeza.dev';
 const HOME     = '/home/visitor';
 
 const COMMAND_NAMES = [
-  'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit', 'free',
+  'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit', 'free',
   'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
   'matrix', 'neofetch', 'nproc', 'pwd', 'sl', 'sudo', 'traceroute',
   'uname', 'uptime', 'whoami',
 ];
+
+// Virtual directory tree reachable by cd
+const KNOWN_DIRS = new Set(['/', '/home', '/home/visitor']);
 
 // ─── OS detection ─────────────────────────────────────────────────────────────
 // 1. userAgentData.platform  — Chrome/Edge (returns "macOS", "Windows", "Linux")
@@ -40,6 +43,7 @@ function detectOS() {
 // ─── Man pages ────────────────────────────────────────────────────────────────
 
 const MAN_PAGES = {
+  cd:         ['change directory',             'cd [dir]',           'Changes the current working directory. Knows /, /home, /home/visitor, and ~. Symlinks (github, x, linkedin) are not directories.'],
   clear:      ['clear the terminal screen',   'clear',              'Clears all output and reprints the boot message. Alias: cls. Shortcut: Ctrl+L.'],
   cls:        ['clear the terminal screen',   'cls',                'Alias for clear.'],
   date:       ['print date and time',         'date',               'Prints the current date and time from the browser clock.'],
@@ -78,6 +82,7 @@ export class Terminal {
     this._histIndex    = -1;
     this._startTime    = Date.now();
     this._busy         = false;         // lock keyboard during animations
+    this._cwd          = HOME;          // virtual working directory
 
     this._termEl   = document.getElementById('terminal');
     this._outputEl = document.getElementById('terminal__output');
@@ -318,7 +323,8 @@ export class Terminal {
       echo:       (args) => this._println(args.join(' ')),
       whoami:     ()     => this._println(USER),
       date:       ()     => this._println(new Date().toString()),
-      pwd:        ()     => this._println(HOME),
+      pwd:        ()     => this._println(this._cwd),
+      cd:         (args) => this._cmdCd(args),
       ls:         (args) => this._cmdLs(args),
       hostname:   ()     => this._println(HOSTNAME),
       uname:      (args) => this._cmdUname(args),
@@ -352,6 +358,7 @@ export class Terminal {
       ['whoami',         'current user'],
       ['date',           'current date and time'],
       ['pwd',            'print working directory'],
+      ['cd [dir]',       'change directory'],
       ['ls [-la]',       'list links'],
       ['hostname',       'print hostname'],
       ['uname [-a]',     'system information'],
@@ -378,15 +385,65 @@ export class Terminal {
       this._println(`total ${this._links.length}`, 'term-line--dim');
       this._println('drwxr-xr-x  visitor visitor   96  ./', 'term-line--dim');
       for (const link of this._links) {
+        const size = String(link.href.length).padStart(4);
         this._printRaw(
-          `<span class="term-line--dim">-rw-r--r--  visitor visitor  512  </span>` +
+          `<span class="term-line--dim">lrwxrwxrwx  visitor visitor ${size}  </span>` +
           `<a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.label}</a>` +
-          `<span class="term-line--dim">  →  ${link.href}</span>`,
+          `<span class="term-line--dim"> -> ${link.href}</span>`,
           'term-line--link'
         );
       }
     } else {
-      this._println(this._links.map(l => l.label).join('  '), 'term-line--bright');
+      // Append @ to each name — standard ls convention for symlinks
+      this._println(this._links.map(l => l.label + '@').join('  '), 'term-line--bright');
+    }
+  }
+
+  _cmdCd(args) {
+    const target = args[0];
+
+    // cd / cd ~ / cd $HOME → reset to home
+    if (!target || target === '~' || target === HOME) {
+      this._cwd = HOME;
+      return;
+    }
+
+    // cd - → previous dir (we only keep one level of history)
+    if (target === '-') {
+      if (this._prevCwd) {
+        [this._cwd, this._prevCwd] = [this._prevCwd, this._cwd];
+        this._println(this._cwd, 'term-line--dim');
+      } else {
+        this._println(`cd: OLDPWD not set`, 'term-line--error');
+      }
+      return;
+    }
+
+    // cd .. → parent
+    if (target === '..') {
+      const parts = this._cwd.split('/').filter(Boolean);
+      parts.pop();
+      this._prevCwd = this._cwd;
+      this._cwd = parts.length ? '/' + parts.join('/') : '/';
+      return;
+    }
+
+    // Resolve absolute vs relative path
+    const resolved = target.startsWith('/')
+      ? target
+      : this._cwd === '/' ? `/${target}` : `${this._cwd}/${target}`;
+
+    // Symlink names → not a directory
+    if (this._links.some(l => l.label === target || l.label === resolved)) {
+      this._println(`cd: ${target}: Not a directory`, 'term-line--error');
+      return;
+    }
+
+    if (KNOWN_DIRS.has(resolved)) {
+      this._prevCwd = this._cwd;
+      this._cwd = resolved;
+    } else {
+      this._println(`cd: ${target}: No such file or directory`, 'term-line--error');
     }
   }
 
