@@ -292,13 +292,31 @@ export function textShape(text, count) {
   const worldH = worldW * (H / W);   // ≈ 0.8 units tall
   const pixelCount = litPixels.length / 2;
 
-  for (let i = 0; i < count; i++) {
+  // 62% of particles form the letters; more Z-scatter so rotation reads as 3-D
+  const textCount = Math.floor(count * 0.62);
+  for (let i = 0; i < textCount; i++) {
     const pick = Math.floor(Math.random() * pixelCount) * 2;
     const px = litPixels[pick];
     const py = litPixels[pick + 1];
     positions[i * 3]     =  (px / W - 0.5) * worldW;
     positions[i * 3 + 1] = -(py / H - 0.5) * worldH;
-    positions[i * 3 + 2] =  (Math.random() - 0.5) * 0.15;  // thin depth scatter
+    positions[i * 3 + 2] =  (Math.random() - 0.5) * 0.5;
   }
+
+  // Remaining 38% fill a sphere around the text.
+  // cbrt-distributed radius gives uniform volume density; minR avoids crowding
+  // the letter pixels that already occupy the core.
+  const sphereR = 4.5;
+  const minR    = 0.8;
+  for (let i = textCount; i < count; i++) {
+    const t     = Math.random();
+    const r     = minR + (sphereR - minR) * Math.cbrt(t);
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi);
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+
   return positions;
 }
