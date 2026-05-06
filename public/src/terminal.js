@@ -7,7 +7,7 @@ const HOSTNAME = window.location.hostname || 'ricardomeza.dev';
 const HOME     = '/home/visitor';
 
 const COMMAND_NAMES = [
-  'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit', 'free',
+  'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit', 'free',
   'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
   'matrix', 'neofetch', 'nproc', 'pwd', 'sl', 'sudo', 'traceroute',
   'uname', 'uptime', 'whoami',
@@ -43,6 +43,7 @@ function detectOS() {
 // ─── Man pages ────────────────────────────────────────────────────────────────
 
 const MAN_PAGES = {
+  cat:        ['concatenate and print files',  'cat [file]',         'Prints the contents of a file. Works on symlinks (github, x, linkedin) — shows the link target URL. cat @name also works.'],
   cd:         ['change directory',             'cd [dir]',           'Changes the current working directory. Knows /, /home, /home/visitor, and ~. Symlinks (github, x, linkedin) are not directories.'],
   clear:      ['clear the terminal screen',   'clear',              'Clears all output and reprints the boot message. Alias: cls. Shortcut: Ctrl+L.'],
   cls:        ['clear the terminal screen',   'cls',                'Alias for clear.'],
@@ -320,6 +321,7 @@ export class Terminal {
       help:       ()     => this._cmdHelp(),
       clear:      ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
       cls:        ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
+      cat:        (args) => this._cmdCat(args),
       echo:       (args) => this._println(args.join(' ')),
       whoami:     ()     => this._println(USER),
       date:       ()     => this._println(new Date().toString()),
@@ -358,6 +360,7 @@ export class Terminal {
       ['whoami',         'current user'],
       ['date',           'current date and time'],
       ['pwd',            'print working directory'],
+      ['cat [file]',     'print file / symlink target'],
       ['cd [dir]',       'change directory'],
       ['ls [-la]',       'list links'],
       ['hostname',       'print hostname'],
@@ -396,6 +399,26 @@ export class Terminal {
     } else {
       // Append @ to each name — standard ls convention for symlinks
       this._println(this._links.map(l => l.label + '@').join('  '), 'term-line--bright');
+    }
+  }
+
+  _cmdCat(args) {
+    if (!args[0]) {
+      this._println('usage: cat [file]', 'term-line--dim');
+      this._println('# reading from stdin not supported — this is a website', 'term-line--dim');
+      return;
+    }
+    // Strip leading @ — ls -F appends it to symlink names, users may copy-paste it
+    const name = args[0].replace(/^@/, '');
+    const link = this._links.find(l => l.label === name);
+    if (link) {
+      // Render it like readlink: show the symlink target, clickable
+      this._printRaw(
+        `<a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.href}</a>`,
+        'term-line--link'
+      );
+    } else {
+      this._println(`cat: ${args[0]}: No such file or directory`, 'term-line--error');
     }
   }
 
