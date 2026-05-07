@@ -1,0 +1,22 @@
+# Ricardo Meza
+
+> Fullstack/AI Engineer and creator based in Mexico City. I build production-ready LLM-powered products and have 15+ years of experience across frontend architecture, full-stack development, and team leadership.
+
+Currently on the Innovation Team at Clara — Latin America's leading corporate payments platform — where I design and ship full-stack AI tools from 0 to 1. I work across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
+
+Before specializing in AI product development I served as Frontend Architect at Conekta, senior engineer at Rappi and MetaMap, and spent 4 years as the Main Manager for Mozilla México, where I led localization of Firefox into Mexican Spanish and indigenous languages.
+
+## Social
+
+- GitHub: https://github.com/ricardomeza
+- X (Twitter): https://x.com/ricardo_meza
+- LinkedIn: https://www.linkedin.com/in/ricardomeza/
+
+## Apps
+
+- [lightguard](https://ricardomeza.com/lightguard): monitors room lighting to protect your sleep
+- [ScribuGo](https://scribugo.com): AI creative assistant — express yourself through a story
+
+## This site
+
+ricardomeza.com is an interactive portfolio with a 3D particle system and a Unix-style terminal emulator. Type `help` in the terminal to explore.
