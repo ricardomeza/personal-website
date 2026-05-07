@@ -63,6 +63,7 @@ export class AgentPanel {
     const prompt = document.createElement('span');
     prompt.id = 'ai-agent__prompt';
     prompt.textContent = '<ask';
+    prompt.style.visibility = 'hidden';
 
     const input = document.createElement('input');
     input.id = 'ai-agent__input';
@@ -86,6 +87,7 @@ export class AgentPanel {
 
     this._output = output;
     this._input  = input;
+    this._prompt = prompt;
 
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
@@ -113,6 +115,7 @@ export class AgentPanel {
         initProgressCallback: () => {},
       });
       this._ready = true;
+      this._prompt.style.visibility = 'visible';
       this._startBrowserScan();
 
       if (this._pendingShape !== null) {

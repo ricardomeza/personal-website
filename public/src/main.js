@@ -75,14 +75,17 @@ function applyTarget(positions) {
 // First morph target is black hole (index 1)
 applyTarget(shapeGenerators[1](PARTICLE_COUNT));
 
-const agent = new AgentPanel();
+const isMobile    = window.matchMedia('(max-width: 540px)').matches || navigator.maxTouchPoints > 1;
+const isCellular  = navigator.connection?.type === 'cellular';
+const isSaveData  = navigator.connection?.saveData === true;
+const agent = (isMobile || isCellular || isSaveData) ? null : new AgentPanel();
 
 const machine = createStateMachine({
   initialPhase: PHASE.MORPH_TO_NEXT,
   initialShapeIndex: 1,
   shapeCount: shapeGenerators.length,
   onPhaseEnter(state) {
-    agent.onSceneEvent(state);
+    agent?.onSceneEvent(state);
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
       particles.bakeYRotation(particles.points.rotation.y);
       particles.points.rotation.y = 0;
@@ -105,7 +108,7 @@ let textMorphT       = 0;    // 0 → 1 over ~1.5 s
 let textMorphPending = null; // holds the positions array until bake is done
 
 function triggerTextMorph() {
-  agent.onTextMorph();
+  agent?.onTextMorph();
   const positions = textShape('Ricardo Meza', PARTICLE_COUNT);
   particles.bakeYRotation(particles.points.rotation.y);
   particles.points.rotation.y = 0;
@@ -178,4 +181,4 @@ const terminal = new Terminal({
   ],
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
 });
-terminal.onCommand = (cmd, args) => agent.onTerminalCommand(cmd, args);
+terminal.onCommand = (cmd, args) => agent?.onTerminalCommand(cmd, args);
