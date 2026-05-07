@@ -199,7 +199,7 @@ export class Terminal {
       setTimeout(() => {
         // Only reclaim if focus didn't go to a link inside the terminal
         const active = document.activeElement;
-        if (!active || active.tagName !== 'A') {
+        if (!active || (active.tagName !== 'A' && active.id !== 'ai-agent__input')) {
           this._relayEl.focus();
         }
       }, 150);
@@ -309,11 +309,17 @@ export class Terminal {
     const [cmd, ...args] = bare.split(/\s+/);
     const handler = this._commands[cmd];
 
-    if (handler) return handler.call(this, args);
+    if (handler) {
+      this.onCommand?.(cmd, args);
+      return handler.call(this, args);
+    }
 
     // Check apps before falling through to "command not found"
     const app = this._apps.find(a => a.label === cmd);
-    if (app) return this._launchApp(app);
+    if (app) {
+      this.onCommand?.(cmd, args);
+      return this._launchApp(app);
+    }
 
     this._println(`command not found: ${cmd}`, 'term-line--error');
     this._println(`type 'help' to see available commands.`, 'term-line--dim');

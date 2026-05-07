@@ -155,6 +155,71 @@ body {
   color: #5a5a5a;
 }
 
+/* ─── AI agent panel ─────────────────────────────────────────── */
+
+#ai-agent {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 20vw;
+  height: 40vh;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  padding: 1.4rem 1.6rem;
+  box-sizing: border-box;
+  font-family: "VT323", "Cascadia Mono", "Menlo", "Consolas", ui-monospace, monospace;
+  font-size: 0.9rem;
+  color: #1f1f1f;
+  text-align: right;
+  line-height: 0.8rem;
+}
+
+#ai-agent__output {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+  transition: color 0.2s;
+}
+#ai-agent__output::-webkit-scrollbar { display: none; }
+#ai-agent__output:hover,
+#ai-agent__output:hover .term-line { color: #ffffff; }
+#ai-agent__output .term-line { margin-top: 0.4rem; }
+
+#ai-agent__input-row {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: baseline;
+  padding-top: 0.1rem;
+  white-space: nowrap;
+}
+
+#ai-agent__prompt {
+  display: inline;
+  color: #d6d6d6;
+  user-select: none;
+  padding-left: 0.3em;
+}
+
+#ai-agent__input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #d6d6d6;
+  caret-color: #d6d6d6;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: right;
+  padding: 0;
+  margin: 0;
+}
+
 /* ─── Mobile ──────────────────────────────────────────────────── */
 
 @media (max-width: 540px) {
