@@ -9,7 +9,7 @@ const HOME     = '/home/visitor';
 const COMMAND_NAMES = [
   'apps', 'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit',
   'file', 'free', 'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
-  'matrix', 'neofetch', 'nproc', 'pwd', 'sl', 'sudo', 'traceroute',
+  'matrix', 'neofetch', 'nproc', 'pwd', 'rm', 'sl', 'sudo', 'traceroute',
   'uname', 'uptime', 'which', 'whoami',
 ];
 
@@ -377,6 +377,7 @@ export class Terminal {
       matrix:     ()     => this._cmdMatrix(),
       traceroute: (args) => this._cmdTraceroute(args),
       sudo:       (args) => this._cmdSudo(args),
+      rm:         (args) => this._cmdRm(args),
     };
   }
 
@@ -933,11 +934,69 @@ export class Terminal {
       }
     }, 80);
 
+    // After flashes: broken LCD vertical lines, then black, then reload
     setTimeout(() => {
-      this._clearOutput();
-      this._setInput('Ricardo Meza');
-      this._printBoot();
-      this._busy = false;
+      const canvas = document.createElement('canvas');
+      canvas.style.cssText = 'position:fixed;inset:0;z-index:99999;display:block';
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+
+      // Dense line cluster on one side; the other side stays black
+      const flipSides = Math.random() < 0.5;
+      const splitX    = Math.floor(W * (0.42 + Math.random() * 0.16));
+      const lineSide  = flipSides ? { from: splitX + 30, to: W - 10 } : { from: 10, to: splitX - 30 };
+
+      // ── Dense vertical line clusters ───────────────────────
+      const LINE_PALETTE = [
+        '#a855f7','#c084fc','#d8b4fe','#22d3ee','#06b6d4','#67e8f9',
+        '#e879f9','#ec4899','#f9a8d4','#ffffff','#86efac','#7dd3fc',
+      ];
+      const lines = [];
+      let lx = lineSide.from + Math.floor(Math.random() * 30);
+      while (lx < lineSide.to - 5) {
+        // Cluster size varies wildly — sometimes a single line, sometimes a huge band
+        const cr = Math.random();
+        const clusterSize =
+          cr < 0.18 ? 1 + Math.floor(Math.random() * 2)   :   // 1–2 lines
+          cr < 0.55 ? 3 + Math.floor(Math.random() * 6)   :   // 3–8 lines
+          cr < 0.88 ? 8 + Math.floor(Math.random() * 12)  :   // 8–19 lines
+                     18 + Math.floor(Math.random() * 18);     // 18–35 lines
+
+        for (let i = 0; i < clusterSize && lx < lineSide.to - 2; i++) {
+          const w = Math.random() < 0.78 ? 1 : 2;
+          lines.push({
+            x:     lx,
+            w,
+            color: LINE_PALETTE[Math.floor(Math.random() * LINE_PALETTE.length)],
+          });
+          lx += w + (Math.random() < 0.35 ? 1 : 0);
+        }
+
+        // Gap size also varies wildly — no repetitive rhythm
+        const gr = Math.random();
+        lx += gr < 0.32 ? 2  + Math.floor(Math.random() * 9)    :   // tight  2–10
+              gr < 0.7  ? 14 + Math.floor(Math.random() * 45)   :   // medium 14–58
+              gr < 0.92 ? 60 + Math.floor(Math.random() * 80)   :   // wide   60–139
+                         140 + Math.floor(Math.random() * 120);     // huge   140–259
+      }
+
+      // Draw once: black background, then static colour stripes
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      for (const line of lines) {
+        ctx.fillStyle = line.color;
+        ctx.fillRect(line.x, 0, line.w, H);
+      }
+
+      // Hold for 3 s, fade to black, then reload
+      setTimeout(() => {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        setTimeout(() => window.location.reload(), 600);
+      }, 3000);
     }, glitchStart + 700);
   }
 
@@ -1015,6 +1074,12 @@ export class Terminal {
       }, delay);
       delay += 380;
     });
+  }
+
+  _cmdRm(args) {
+    const target = args.join(' ') || '';
+    this._println(`rm: cannot remove ${target || 'file'}: Permission denied`, 'term-line--error');
+    this._println(`try: sudo rm ${target}`.trim(), 'term-line--dim');
   }
 
   _cmdSudo(args) {
