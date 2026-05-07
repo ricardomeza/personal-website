@@ -167,5 +167,8 @@ new Terminal({
     { label: 'x',        href: 'https://x.com/ricardo_meza' },
     { label: 'linkedin', href: 'https://www.linkedin.com/in/ricardomeza/' },
   ],
+  apps: [
+    { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'light-based puzzle game' },
+  ],
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
 });

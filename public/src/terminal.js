@@ -7,10 +7,10 @@ const HOSTNAME = window.location.hostname || 'ricardomeza.dev';
 const HOME     = '/home/visitor';
 
 const COMMAND_NAMES = [
-  'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit', 'free',
-  'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
+  'apps', 'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit',
+  'file', 'free', 'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
   'matrix', 'neofetch', 'nproc', 'pwd', 'sl', 'sudo', 'traceroute',
-  'uname', 'uptime', 'whoami',
+  'uname', 'uptime', 'which', 'whoami',
 ];
 
 // Virtual directory tree reachable by cd
@@ -43,8 +43,10 @@ function detectOS() {
 // ─── Man pages ────────────────────────────────────────────────────────────────
 
 const MAN_PAGES = {
-  cat:        ['concatenate and print files',  'cat [file]',         'Prints the contents of a file. Works on symlinks (github, x, linkedin) — shows the link target URL. cat @name also works.'],
-  cd:         ['change directory',             'cd [dir]',           'Changes the current working directory. Knows /, /home, /home/visitor, and ~. Symlinks (github, x, linkedin) are not directories.'],
+  apps:       ['list available apps',          'apps',               'Lists all launchable apps with descriptions. Type the app name (or ./appname) to launch it in a new tab.'],
+  cat:        ['concatenate and print files',  'cat [file]',         'Prints the contents of a file. For symlinks shows the URL; for executables shows the script body. cat @name also works.'],
+  cd:         ['change directory',             'cd [dir]',           'Changes the current working directory. Knows /, /home, /home/visitor, and ~. Symlinks and executables are not directories.'],
+  file:       ['determine file type',          'file [name]',        'Describes the type of a file. Apps show as "Bourne-Again shell script, ASCII text executable"; links show as "symbolic link to <url>".'],
   clear:      ['clear the terminal screen',   'clear',              'Clears all output and reprints the boot message. Alias: cls. Shortcut: Ctrl+L.'],
   cls:        ['clear the terminal screen',   'cls',                'Alias for clear.'],
   date:       ['print date and time',         'date',               'Prints the current date and time from the browser clock.'],
@@ -69,14 +71,16 @@ const MAN_PAGES = {
   traceroute: ['trace network route',         'traceroute [host]',  'Traces the route packets take to reach a host.'],
   uname:      ['print system information',    'uname [-a]',         'Without flags: prints "Linux". With -a: full system/browser info string.'],
   uptime:     ['show session uptime',         'uptime',             'Shows how long this terminal session has been running.'],
+  which:      ['locate a command',            'which [name]',       'Prints the full path of an executable. Apps resolve to /home/visitor/bin/<name>. Links and unknown names return nothing.'],
   whoami:     ['print current user',          'whoami',             'Prints the current user name.'],
 };
 
 // ─── Terminal class ───────────────────────────────────────────────────────────
 
 export class Terminal {
-  constructor({ links = [], onNameSubmit = null, onCommand = null } = {}) {
+  constructor({ links = [], apps = [], onNameSubmit = null, onCommand = null } = {}) {
     this._links        = links;
+    this._apps         = apps;
     this._onNameSubmit = onNameSubmit;  // called when "Ricardo Meza" is entered
     this._onCommand    = onCommand;     // called on any other command (resumes particle cycle)
     this._history      = [];            // most-recent first
@@ -220,6 +224,14 @@ export class Terminal {
     if (raw.toLowerCase() === 'ricardo meza') {
       this._dismissHelper();
       if (this._onNameSubmit) this._onNameSubmit();
+      // Post-morph nudge: appears ~2.5 s after Enter, once the name shape is
+      // fully rendered and clearly visible (morph-in takes ~1.5 s).
+      if (this._apps.length) {
+        setTimeout(() => {
+          this._println("  — try 'apps' to see what I've built.", 'term-line--dim');
+          this._scrollToBottom();
+        }, 2500);
+      }
       this._scrollToBottom();
       return;
     }
@@ -291,10 +303,16 @@ export class Terminal {
       return this._cmdSudoRm();
     }
 
-    const [cmd, ...args] = trimmed.split(/\s+/);
+    // Strip leading ./ so "./lightguard" resolves identically to "lightguard"
+    const bare = trimmed.replace(/^\.\//, '');
+    const [cmd, ...args] = bare.split(/\s+/);
     const handler = this._commands[cmd];
 
     if (handler) return handler.call(this, args);
+
+    // Check apps before falling through to "command not found"
+    const app = this._apps.find(a => a.label === cmd);
+    if (app) return this._launchApp(app);
 
     this._println(`command not found: ${cmd}`, 'term-line--error');
     this._println(`type 'help' to see available commands.`, 'term-line--dim');
@@ -303,14 +321,18 @@ export class Terminal {
   // ── Boot message ───────────────────────────────────────────────────────────
 
   _printBoot() {
-    // Track the helper element so we can remove it the moment the user
+    // Track the helper elements so we can remove them the moment the user
     // starts typing or deleting the pre-filled "Ricardo Meza" input.
-    this._helperEl  = this._println("type 'help' for available commands.", 'term-line--dim');
-    this._helperGap = this._printBlank();
+    this._helperEl   = this._println("type 'help' for available commands.", 'term-line--dim');
+    this._helperEl2  = this._apps.length
+      ? this._println("type 'apps' to explore my projects.", 'term-line--dim')
+      : null;
+    this._helperGap  = this._printBlank();
   }
 
   _dismissHelper() {
     if (this._helperEl)  { this._helperEl.remove();  this._helperEl  = null; }
+    if (this._helperEl2) { this._helperEl2.remove(); this._helperEl2 = null; }
     if (this._helperGap) { this._helperGap.remove(); this._helperGap = null; }
   }
 
@@ -321,8 +343,11 @@ export class Terminal {
       help:       ()     => this._cmdHelp(),
       clear:      ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
       cls:        ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
+      apps:       ()     => this._cmdApps(),
       cat:        (args) => this._cmdCat(args),
       echo:       (args) => this._println(args.join(' ')),
+      file:       (args) => this._cmdFile(args),
+      which:      (args) => this._cmdWhich(args),
       whoami:     ()     => this._println(USER),
       date:       ()     => this._println(new Date().toString()),
       pwd:        ()     => this._println(this._cwd),
@@ -360,9 +385,12 @@ export class Terminal {
       ['whoami',         'current user'],
       ['date',           'current date and time'],
       ['pwd',            'print working directory'],
-      ['cat [file]',     'print file / symlink target'],
+      ['apps',           'list launchable projects'],
+      ['cat [file]',     'print file / symlink / script'],
       ['cd [dir]',       'change directory'],
-      ['ls [-la]',       'list links'],
+      ['file [name]',    'determine file type'],
+      ['ls [-la]',       'list directory contents'],
+      ['which [name]',   'locate a command'],
       ['hostname',       'print hostname'],
       ['uname [-a]',     'system information'],
       ['env',            'environment variables'],
@@ -384,8 +412,9 @@ export class Terminal {
 
   _cmdLs(args) {
     const long = args.some(a => a.startsWith('-') && (a.includes('l') || a.includes('a')));
+    const total = this._links.length + this._apps.length;
     if (long) {
-      this._println(`total ${this._links.length}`, 'term-line--dim');
+      this._println(`total ${total}`, 'term-line--dim');
       this._println('drwxr-xr-x  visitor visitor   96  ./', 'term-line--dim');
       for (const link of this._links) {
         const size = String(link.href.length).padStart(4);
@@ -396,9 +425,21 @@ export class Terminal {
           'term-line--link'
         );
       }
+      for (const app of this._apps) {
+        const size = String(app.href.length).padStart(4);
+        this._printRaw(
+          `<span class="term-line--dim">-rwxr-xr-x  visitor visitor ${size}  </span>` +
+          `<a href="${app.href}" target="_blank" rel="noopener noreferrer">${app.label}</a>`,
+          'term-line--link'
+        );
+      }
     } else {
-      // Append @ to each name — standard ls convention for symlinks
-      this._println(this._links.map(l => l.label + '@').join('  '), 'term-line--bright');
+      // @ = symlink, * = executable — standard ls -F conventions
+      const names = [
+        ...this._links.map(l => l.label + '@'),
+        ...this._apps.map(a => a.label + '*'),
+      ];
+      this._println(names.join('  '), 'term-line--bright');
     }
   }
 
@@ -408,18 +449,111 @@ export class Terminal {
       this._println('# reading from stdin not supported — this is a website', 'term-line--dim');
       return;
     }
-    // Strip leading @ — ls -F appends it to symlink names, users may copy-paste it
-    const name = args[0].replace(/^@/, '');
+    // Strip leading @ or * and ./ — users may copy-paste ls -F output
+    const name = args[0].replace(/^\.\//, '').replace(/^[@*]/, '');
     const link = this._links.find(l => l.label === name);
     if (link) {
-      // Render it like readlink: show the symlink target, clickable
+      // Symlink: show the target URL as a clickable link
       this._printRaw(
         `<a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.href}</a>`,
         'term-line--link'
       );
-    } else {
-      this._println(`cat: ${args[0]}: No such file or directory`, 'term-line--error');
+      return;
     }
+    const app = this._apps.find(a => a.label === name);
+    if (app) {
+      // Executable: show a fake shell script body
+      this._println('#!/bin/bash', 'term-line--dim');
+      this._println(`# ${app.label} — ${app.desc}`, 'term-line--dim');
+      this._printRaw(
+        `exec xdg-open <a href="${app.href}" target="_blank" rel="noopener noreferrer">${app.href}</a>`,
+        'term-line--link'
+      );
+      return;
+    }
+    this._println(`cat: ${args[0]}: No such file or directory`, 'term-line--error');
+  }
+
+  _launchApp(app) {
+    this._busy = true;
+    const BAR = '████████████████████';
+    this._println(`[${app.label}] initializing...`, 'term-line--dim');
+    setTimeout(() => {
+      this._println(`[${app.label}] ${BAR} 100%`);
+      this._scrollToBottom();
+    }, 400);
+    setTimeout(() => {
+      this._println(`[${app.label}] spawning in new tab...`, 'term-line--dim');
+      this._scrollToBottom();
+    }, 900);
+    setTimeout(() => {
+      window.open(app.href, '_blank', 'noopener,noreferrer');
+      this._busy = false;
+      this._scrollToBottom();
+    }, 1300);
+  }
+
+  _cmdApps() {
+    if (!this._apps.length) {
+      this._println('no apps configured.', 'term-line--dim');
+      return;
+    }
+    this._println('available apps:', 'term-line--bright');
+    this._printBlank();
+    for (const app of this._apps) {
+      this._printRaw(
+        `  <span class="term-line--bright">${app.label.padEnd(14)}</span>` +
+        `<span class="term-line--output">${app.desc}</span>`,
+        'term-line--output'
+      );
+      this._printRaw(
+        `  ${''.padEnd(14)}<a href="${app.href}" target="_blank" rel="noopener noreferrer">→ ${app.href}</a>`,
+        'term-line--link'
+      );
+    }
+    this._printBlank();
+    this._println("type the app name (or ./appname) to launch.", 'term-line--dim');
+  }
+
+  _cmdFile(args) {
+    if (!args[0]) {
+      this._println('usage: file [name]', 'term-line--dim');
+      return;
+    }
+    const name = args[0].replace(/^\.\//, '').replace(/^[@*]/, '');
+    const link = this._links.find(l => l.label === name);
+    if (link) {
+      this._println(`${name}: symbolic link to ${link.href}`);
+      return;
+    }
+    const app = this._apps.find(a => a.label === name);
+    if (app) {
+      this._println(`${name}: Bourne-Again shell script, ASCII text executable`);
+      return;
+    }
+    this._println(`${args[0]}: cannot open (No such file or directory)`, 'term-line--error');
+  }
+
+  _cmdWhich(args) {
+    if (!args[0]) {
+      this._println('usage: which [name]', 'term-line--dim');
+      return;
+    }
+    const name = args[0].replace(/^\.\//, '');
+    const app = this._apps.find(a => a.label === name);
+    if (app) {
+      this._println(`/home/visitor/bin/${name}`);
+      return;
+    }
+    // Commands in PATH
+    if (COMMAND_NAMES.includes(name)) {
+      this._println(`/usr/bin/${name}`);
+      return;
+    }
+    this._println(
+      `which: no ${name} in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/visitor/bin)`,
+      'term-line--dim'
+    );
   }
 
   _cmdCd(args) {
