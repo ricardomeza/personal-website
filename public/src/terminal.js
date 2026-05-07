@@ -281,8 +281,9 @@ export class Terminal {
     const parts   = val.trim().split(/\s+/);
     if (parts.length !== 1 || !parts[0]) return;
 
-    const prefix  = parts[0];
-    const matches = COMMAND_NAMES.filter(c => c.startsWith(prefix));
+    const prefix  = parts[0].replace(/^\.\//, '');
+    const allNames = [...COMMAND_NAMES, ...this._apps.map(a => a.label)];
+    const matches = allNames.filter(c => c.startsWith(prefix));
 
     if (matches.length === 1) {
       this._setInput(matches[0] + ' ');
