@@ -169,6 +169,7 @@ new Terminal({
   ],
   apps: [
     { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'monitors room lighting to protect your sleep' },
+    { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'AI creative assistant — express yourself through a story' },
   ],
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
 });

@@ -502,13 +502,19 @@ export class Terminal {
     this._println('available apps:', 'term-line--bright');
     this._printBlank();
     for (const app of this._apps) {
+      // Hanging indent: padding-left = label column (2 indent + 14 padEnd = 16ch),
+      // text-indent pulls the first line back so the label starts at column 0.
+      // Wrapped description lines then align with where the desc began.
       this._printRaw(
-        `  <span class="term-line--bright">${app.label.padEnd(14)}</span>` +
-        `<span class="term-line--output">${app.desc}</span>`,
+        `<div style="padding-left:18ch;text-indent:-18ch">` +
+        `  <span class="term-line--dim">▸ </span>` +
+        `<span class="term-line--bright">${app.label.padEnd(14)}</span>` +
+        `<span class="term-line--output">${app.desc}</span>` +
+        `</div>`,
         'term-line--output'
       );
       this._printRaw(
-        `  ${''.padEnd(14)}<a href="${app.href}" target="_blank" rel="noopener noreferrer">→ ${app.href}</a>`,
+        `  ${''.padEnd(16)}<a href="${app.href}" target="_blank" rel="noopener noreferrer">→ ${app.href}</a>`,
         'term-line--link'
       );
     }
