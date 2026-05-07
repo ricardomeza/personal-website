@@ -513,7 +513,7 @@ export class Terminal {
       );
     }
     this._printBlank();
-    this._println("type the app name (or ./appname) to launch.", 'term-line--dim');
+    this._println("type the app name to launch  ·  tab to autocomplete.", 'term-line--dim');
   }
 
   _cmdFile(args) {
