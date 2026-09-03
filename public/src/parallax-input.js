@@ -16,6 +16,8 @@ const clamp = (v) => Math.max(-1, Math.min(1, v));
 export function createParallaxInput() {
   const pointer = { x: 0, y: 0 };
   const tilt    = { x: 0, y: 0 };
+  let   status  = 'unsupported'; // surfaced via the terminal's `env` for on-device debugging
+  let   last    = null;          // last screen-oriented { beta, gamma }
 
   // ─── Mouse / touch — both map screen position to [-1, 1] ─────────────────
   function setPointer(clientX, clientY) {
@@ -35,10 +37,9 @@ export function createParallaxInput() {
   window.addEventListener('touchmove',  onTouch, { passive: true });
 
   // ─── Device tilt ──────────────────────────────────────────────────────────
-  const hasTouch      = navigator.maxTouchPoints > 0;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hasTouch = navigator.maxTouchPoints > 0;
 
-  if (hasTouch && !reducedMotion && 'DeviceOrientationEvent' in window) {
+  if (hasTouch && 'DeviceOrientationEvent' in window) {
     let baseline = null; // { beta, gamma } in screen-oriented axes
 
     // Rotate beta/gamma into the current screen orientation so "tilt right"
@@ -57,6 +58,8 @@ export function createParallaxInput() {
       // Desktop browsers with no sensor fire one event with null values.
       if (e.beta == null || e.gamma == null) return;
       const cur = screenAxes(e.beta, e.gamma);
+      last   = cur;
+      status = 'active';
 
       if (!baseline) { baseline = cur; return; }
 
@@ -77,6 +80,7 @@ export function createParallaxInput() {
     }
 
     function startListening() {
+      status = 'listening';
       window.addEventListener('deviceorientation', onOrientation);
       screen.orientation?.addEventListener('change', resetBaseline);
       window.addEventListener('orientationchange', resetBaseline);
@@ -89,12 +93,20 @@ export function createParallaxInput() {
       // iOS 13+: sensor access must be requested from a user gesture. Ask on
       // the first tap; if denied (or the promise rejects on http) we silently
       // fall back to touch drag only.
+      status = 'awaiting-tap';
       const request = () => {
         document.removeEventListener('touchend', request);
         document.removeEventListener('click',    request);
-        DeviceOrientationEvent.requestPermission()
-          .then((state) => { if (state === 'granted') startListening(); })
-          .catch(() => {});
+        try {
+          DeviceOrientationEvent.requestPermission()
+            .then((state) => {
+              if (state === 'granted') startListening();
+              else status = state; // 'denied'
+            })
+            .catch((err) => { status = `error: ${err?.message ?? err}`; });
+        } catch (err) {
+          status = `error: ${err?.message ?? err}`;
+        }
       };
       document.addEventListener('touchend', request, { passive: true });
       document.addEventListener('click',    request);
@@ -108,5 +120,10 @@ export function createParallaxInput() {
   return {
     get x() { return clamp(pointer.x + tilt.x); },
     get y() { return clamp(pointer.y + tilt.y); },
+    get status() {
+      return last
+        ? `${status} β=${last.beta.toFixed(1)} γ=${last.gamma.toFixed(1)} tilt=(${tilt.x.toFixed(2)},${tilt.y.toFixed(2)})`
+        : status;
+    },
   };
 }

@@ -177,5 +177,6 @@ const terminal = new Terminal({
     { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'AI creative assistant — express yourself through a story' },
   ],
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
+  extraEnv: () => [`MOTION_SENSOR=${parallaxInput.status}`],  // tilt diagnostics via `env`
 });
 terminal.onCommand = (cmd, args) => agent?.onTerminalCommand(cmd, args);

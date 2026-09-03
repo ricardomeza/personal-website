@@ -78,11 +78,12 @@ const MAN_PAGES = {
 // ─── Terminal class ───────────────────────────────────────────────────────────
 
 export class Terminal {
-  constructor({ links = [], apps = [], onNameSubmit = null, onCommand = null } = {}) {
+  constructor({ links = [], apps = [], onNameSubmit = null, onCommand = null, extraEnv = null } = {}) {
     this._links        = links;
     this._apps         = apps;
     this._onNameSubmit = onNameSubmit;  // called when "Ricardo Meza" is entered
     this._onCommand    = onCommand;     // called on any other command (resumes particle cycle)
+    this._extraEnv     = extraEnv;      // () => ['KEY=value', …] appended to `env` output
     this._history      = [];            // most-recent first
     this._histIndex    = -1;
     this._startTime    = Date.now();
@@ -650,6 +651,7 @@ export class Terminal {
       `PLATFORM=${platform}`,
       `HOSTNAME=${HOSTNAME}`,
       `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
+      ...(this._extraEnv?.() ?? []),
     ];
     for (const v of vars) this._println(v);
   }
