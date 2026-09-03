@@ -5,6 +5,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { createParticles } from "./particles.js";
+import { createParallaxInput } from "./parallax-input.js";
 import { shapeGenerators, grid, textShape } from "./shapes.js";
 import {
   PHASE,
@@ -34,17 +35,13 @@ const camera = new PerspectiveCamera(
 camera.position.set(0, 1.5, 8);
 camera.lookAt(0, 0, 0);
 
-// Mouse parallax — camera drifts slightly toward cursor, always looking at origin
+// Parallax — camera drifts slightly toward the input (mouse, touch drag or
+// device tilt — see parallax-input.js), always looking at origin
 const CAMERA_BASE = { x: 0, y: 1.5 };
 const PAR_SCALE = { x: 0.35, y: 0.18 };
 const PAR_EASE = 0.04;
-const mouseNorm = { x: 0, y: 0 };
+const parallaxInput = createParallaxInput();
 const par = { x: 0, y: 0 };
-
-window.addEventListener("mousemove", (e) => {
-  mouseNorm.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouseNorm.y = -((e.clientY / window.innerHeight) * 2 - 1);
-});
 
 const cameraTilt = Math.atan2(camera.position.y, camera.position.z);
 const cameraDist = Math.hypot(camera.position.y, camera.position.z);
@@ -145,9 +142,9 @@ function animate() {
     particles.setMorph(morphProgress(state));
   }
 
-  // Smooth parallax — lerp camera toward mouse-driven offset, keep looking at origin
-  par.x += (-mouseNorm.x * PAR_SCALE.x - par.x) * PAR_EASE;
-  par.y += (mouseNorm.y * PAR_SCALE.y - par.y) * PAR_EASE;
+  // Smooth parallax — lerp camera toward input-driven offset, keep looking at origin
+  par.x += (-parallaxInput.x * PAR_SCALE.x - par.x) * PAR_EASE;
+  par.y += (parallaxInput.y * PAR_SCALE.y - par.y) * PAR_EASE;
   camera.position.x = CAMERA_BASE.x + par.x;
   camera.position.y = CAMERA_BASE.y + par.y;
   camera.lookAt(0, 0, 0);
