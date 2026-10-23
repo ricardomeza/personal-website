@@ -1,0 +1,19 @@
+# The sha256 in script-src is the hash of the inline import map in index.html.
+# Any edit to that <script type="importmap"> block (even whitespace) changes the
+# hash and the browser will refuse the map until this value is recomputed.
+#
+# worker-src lists cdn.jsdelivr.net because a module worker's static imports
+# are checked against worker-src, not script-src: without it agent-worker.js
+# fails to load and the AI agent silently never starts.
+#
+# connect-src: web-llm downloads model weights from huggingface.co (redirected
+# to *.hf.co / *.huggingface.co CDNs) and the model wasm from
+# raw.githubusercontent.com. 'wasm-unsafe-eval' lets it compile that wasm.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-c/BjH8DhJz1/484jG8shze2Egvxbzw572EoBLVSQn14=' https://esm.sh https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://esm.sh https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://raw.githubusercontent.com; worker-src 'self' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=()
