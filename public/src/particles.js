@@ -60,10 +60,16 @@ const vertexShader = /* glsl */ `
     vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mvPosition;
 
-    // Sparkle: a sine raised to a high power is near zero most of the cycle
-    // and spikes briefly at its crest — a short flash, then a long rest.
+    // Sparkle only shows on a formed shape: it fades out as a journey sets off
+    // and back in as particles land, so in transit (and on the grid) every
+    // particle is back to its base size and colour.
+    float sparkle = max(1.0 - smoothstep(0.0, 0.15, uProgress), smoothstep(0.8, 1.0, uProgress));
+
+    // A sine raised to a high power is near zero most of the cycle and
+    // spikes briefly at its crest — a short flash, then a long rest.
     float wave = 0.5 + 0.5 * sin(uTime * aSpark.w + aSpark.z);
-    float flash = aSpark.y * pow(wave, 28.0);
+    float flash = aSpark.y * pow(wave, 28.0) * sparkle;
+    float brightness = mix(1.0, aSpark.x, sparkle);
     vFlash = flash;
 
     float dist = -mvPosition.z;
@@ -73,7 +79,7 @@ const vertexShader = /* glsl */ `
     // glint reads as its colour instead of washing out to white.
     float luma = dot(aColor, vec3(0.299, 0.587, 0.114));
     vec3 vivid = clamp(mix(vec3(luma), aColor, 3.2), 0.0, 1.0);
-    vColor = mix(aColor, vivid, min(flash * 1.5, 1.0)) * (aSpark.x + flash * 1.4);
+    vColor = mix(aColor, vivid, min(flash * 1.5, 1.0)) * (brightness + flash * 1.4);
   }
 `;
 
