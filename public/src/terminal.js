@@ -179,17 +179,20 @@ export class Terminal {
     });
 
     // Relay input: sync typed text on every character change
-    this._relayEl.addEventListener('input', () => {
+    this._relayEl.addEventListener('input', (e) => {
       if (this._busy) {
         this._relayEl.value = '';
         return;
       }
       // Typing or pasting over the pre-filled name replaces it and deleting
       // clears it, so a visitor who just starts typing "about me" doesn't get
-      // "Ricardo Mezaabout me".
+      // "Ricardo Mezaabout me". Text that already replaced the whole line
+      // (select-all + type, some mobile keyboards) is kept as is.
       if (this._prefilled) {
         const val = this._relayEl.value;
-        this._relayEl.value = val.startsWith(NAME) ? val.slice(NAME.length) : '';
+        this._relayEl.value = e.inputType?.startsWith('delete') ? ''
+                            : val.startsWith(NAME) ? val.slice(NAME.length)
+                            : val;
         this._prefilled = false;
       }
       this._typedEl.textContent = this._relayEl.value;

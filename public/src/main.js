@@ -241,7 +241,7 @@ const terminal = new Terminal({
   ],
   apps: [
     { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'monitors room lighting to protect your sleep' },
-    { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'AI creative assistant — express yourself through a story' },
+    { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'stories made for you — you answer nine questions, the AI writes it and you read it' },
   ],
   // `about <topic>` — each key is a topic; `desc` shows in the `about` index
   // and an optional `link` closes the topic with a line pointing to it.
