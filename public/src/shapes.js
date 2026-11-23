@@ -1,8 +1,34 @@
+// A shape is { positions, advance? }. `positions` is where each particle
+// sits when the shape forms. `advance(t, out, fade)`, when present, makes the
+// shape move while it's on screen: it writes where its moving particles are
+// `t` seconds after it formed into `out` (xyz per particle) and how visible
+// each one is into `fade` (0..1). Particles that loop — back to a galaxy's
+// rim, say — sit at fade 0 where they wrap so they never pop in or out.
+// Particles advance() doesn't write keep their `positions` place.
+
 function gaussian() {
   const u = 1 - Math.random();
   const v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function wrap(value, period) {
+  return ((value % period) + period) % period;
+}
+
+// Galaxy arm particles drift inward along their arm at this many units² of
+// r² per second. Stepping r² (not r) at a constant rate keeps their density
+// across the disc unchanged and gives a near-constant speed along the arm.
+const GALAXY_INFLOW = 0.075;
+const GALAXY_RIM_FADE = 0.35;
+// Vertical spread of the arms, as a fraction of radius: thin, so the disc
+// reads flat rather than as tall arcs.
+const GALAXY_ARM_THICKNESS = 0.012;
 
 export function galaxy(count) {
   const positions = new Float32Array(count * 3);
@@ -22,19 +48,49 @@ export function galaxy(count) {
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
-  // Spiral arms
-  for (let arm = 0; idx < count; arm = (arm + 1) % ARMS, idx++) {
+  // Spiral arms — each particle remembers its arm angle (θ at r = 0), r² and
+  // vertical lift so advance() can slide it along the same curve.
+  const armFirst = idx;
+  const armCount = count - idx;
+  const armAngle = new Float32Array(armCount);
+  const armR2 = new Float32Array(armCount);
+  const armLift = new Float32Array(armCount);
+  for (let arm = 0, j = 0; idx < count; arm = (arm + 1) % ARMS, idx++, j++) {
     const r = Math.sqrt(Math.random()) * R;
-    const baseAngle = (arm * Math.PI * 2) / ARMS;
     const jitter = (Math.random() - 0.5) * 0.35;
-    const theta = baseAngle + r * TWIST + jitter;
+    armAngle[j] = (arm * Math.PI * 2) / ARMS + jitter;
+    armR2[j] = r * r;
+    armLift[j] = gaussian() * GALAXY_ARM_THICKNESS;
+    const theta = armAngle[j] + r * TWIST;
     positions[idx * 3 + 0] = Math.cos(theta) * r;
-    positions[idx * 3 + 1] = gaussian() * 0.04 * r;
+    positions[idx * 3 + 1] = armLift[j] * r;
     positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
 
-  return positions;
+  // Arms stream into the bulge; a particle fades out as it sinks into the
+  // centre, loops back to the rim and fades in over the outer GALAXY_RIM_FADE.
+  function advance(t, out, fade) {
+    for (let j = 0; j < armCount; j++) {
+      const r = Math.sqrt(wrap(armR2[j] - GALAXY_INFLOW * t, R * R));
+      const theta = armAngle[j] + r * TWIST;
+      const i = armFirst + j;
+      out[i * 3 + 0] = Math.cos(theta) * r;
+      out[i * 3 + 1] = armLift[j] * r;
+      out[i * 3 + 2] = Math.sin(theta) * r;
+      fade[i] = smoothstep(R, R - GALAXY_RIM_FADE, r) * smoothstep(0, 0.25, r * r);
+    }
+  }
+
+  return { positions, advance };
 }
+
+// Black hole: the tidal stream flows from the disrupted star into the core
+// (fraction of the stream per second), the inner ring orbits faster the
+// tighter it is, and jet particles are expelled up and down (units/s).
+const STREAM_SPEED = 0.0075;
+const RING_SPIN = 0.025;
+const JET_SPEED = 0.17;
+const JET_LENGTH = 5.0;
 
 export function blackHole(count) {
   const positions = new Float32Array(count * 3);
@@ -83,44 +139,61 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = starZ + r * Math.sin(phi) * Math.sin(theta);
   }
 
-  for (let i = 0; i < streamCount; i++, idx++) {
-    const t = Math.random();
+  // Each stream particle keeps its place along the stream and its offsets
+  // across it (as a fraction of the local width) and above it.
+  const streamFirst = idx;
+  const streamT = new Float32Array(streamCount);
+  const streamSide = new Float32Array(streamCount);
+  const streamLift = new Float32Array(streamCount);
+  function placeOnStream(i, t, side, lift, out) {
     const r = outerR * Math.exp(-kSpiral * t);
     const angle = startAngle + sweepAngle * t;
-
-    const cx = Math.cos(angle) * r;
-    const cz = Math.sin(angle) * r;
-    const perpX = -Math.sin(angle);
-    const perpZ = Math.cos(angle);
-
     const width = 0.03 + t * 0.2;
-    const scatter = (Math.random() - 0.5) * 2 * width;
-    const yScatter = gaussian() * 0.025 * (0.3 + t);
-
-    positions[idx * 3 + 0] = cx + perpX * scatter;
-    positions[idx * 3 + 1] = yScatter;
-    positions[idx * 3 + 2] = cz + perpZ * scatter;
+    out[i * 3 + 0] = Math.cos(angle) * r - Math.sin(angle) * side * width;
+    out[i * 3 + 1] = lift * (0.3 + t);
+    out[i * 3 + 2] = Math.sin(angle) * r + Math.cos(angle) * side * width;
+  }
+  for (let j = 0; j < streamCount; j++, idx++) {
+    streamT[j] = Math.random();
+    streamSide[j] = (Math.random() - 0.5) * 2;
+    streamLift[j] = gaussian() * 0.025;
+    placeOnStream(idx, streamT[j], streamSide[j], streamLift[j], positions);
   }
 
   // Circularized inner ring — matter that has completed its first orbit
+  const ringFirst = idx;
   const ringCount = Math.floor(count * 0.06);
-  for (let i = 0; i < ringCount; i++, idx++) {
-    const r = 0.18 + Math.pow(Math.random(), 1.5) * 0.45;
-    const theta = Math.random() * Math.PI * 2;
-    positions[idx * 3 + 0] = Math.cos(theta) * r;
+  const ringR = new Float32Array(ringCount);
+  const ringAngle = new Float32Array(ringCount);
+  for (let j = 0; j < ringCount; j++, idx++) {
+    ringR[j] = 0.18 + Math.pow(Math.random(), 1.5) * 0.45;
+    ringAngle[j] = Math.random() * Math.PI * 2;
+    positions[idx * 3 + 0] = Math.cos(ringAngle[j]) * ringR[j];
     positions[idx * 3 + 1] = gaussian() * 0.014;
-    positions[idx * 3 + 2] = Math.sin(theta) * r;
+    positions[idx * 3 + 2] = Math.sin(ringAngle[j]) * ringR[j];
   }
 
-  // Relativistic jets — two narrow columns expelled perpendicular to the disk
+  // Relativistic jets — two narrow columns expelled perpendicular to the disk.
+  // Each particle keeps its height and a sideways offset that widens with it.
+  const jetFirst = idx;
   const jetCount = Math.floor(count * 0.08);
-  for (let i = 0; i < jetCount; i++, idx++) {
-    const sign = i < jetCount / 2 ? 1 : -1;
-    const y = Math.pow(Math.random(), 1.2) * 5.0 * sign;
-    const spread = Math.abs(y) * 0.045 + 0.02;
-    positions[idx * 3 + 0] = gaussian() * spread;
-    positions[idx * 3 + 1] = y;
-    positions[idx * 3 + 2] = gaussian() * spread;
+  const jetHeight = new Float32Array(jetCount);
+  const jetSideX = new Float32Array(jetCount);
+  const jetSideZ = new Float32Array(jetCount);
+  function placeOnJet(i, j, h, out) {
+    const sign = j < jetCount / 2 ? 1 : -1;
+    const spread = h * 0.045 + 0.02;
+    out[i * 3 + 0] = jetSideX[j] * spread;
+    out[i * 3 + 1] = h * sign;
+    out[i * 3 + 2] = jetSideZ[j] * spread;
+  }
+  for (let j = 0; j < jetCount; j++, idx++) {
+    // Uniform heights: with a steady outflow that keeps the jets' density
+    // constant instead of pulsing as the particles loop.
+    jetHeight[j] = Math.random() * JET_LENGTH;
+    jetSideX[j] = gaussian();
+    jetSideZ[j] = gaussian();
+    placeOnJet(idx, j, jetHeight[j], positions);
   }
 
   // Remaining particles pad to count (rounding slack)
@@ -130,7 +203,31 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = (Math.random() - 0.5) * 0.1;
   }
 
-  return positions;
+  // Stream particles fade in as they peel off the star and out as they reach
+  // the ring; jet particles start inside the bright core and fade out at the
+  // jets' tips before looping back.
+  function advance(t, out, fade) {
+    for (let j = 0; j < streamCount; j++) {
+      const s = wrap(streamT[j] + STREAM_SPEED * t, 1);
+      const i = streamFirst + j;
+      placeOnStream(i, s, streamSide[j], streamLift[j], out);
+      fade[i] = smoothstep(0, 0.05, s) * smoothstep(1, 0.93, s);
+    }
+    for (let j = 0; j < ringCount; j++) {
+      const angle = ringAngle[j] - (RING_SPIN * t) / Math.pow(ringR[j], 1.5);
+      const i = ringFirst + j;
+      out[i * 3 + 0] = Math.cos(angle) * ringR[j];
+      out[i * 3 + 2] = Math.sin(angle) * ringR[j];
+    }
+    for (let j = 0; j < jetCount; j++) {
+      const h = wrap(jetHeight[j] + JET_SPEED * t, JET_LENGTH);
+      const i = jetFirst + j;
+      placeOnJet(i, j, h, out);
+      fade[i] = smoothstep(JET_LENGTH, JET_LENGTH * 0.7, h);
+    }
+  }
+
+  return { positions, advance };
 }
 
 export function solarSystem(count) {
@@ -177,14 +274,21 @@ export function solarSystem(count) {
     positions[idx * 3 + 2] = Math.sin(theta) * r;
   }
 
-  return positions;
+  return { positions };
 }
+
+// Earth spins on its axis (atmosphere a touch slower) and the moon orbits
+// it, in radians per second about the vertical axis through the Earth.
+const EARTH_SPIN = 0.033;
+const ATMOSPHERE_SPIN = 0.025;
+const MOON_ORBIT = 0.012;
 
 export function earthAndMoon(count) {
   const positions = new Float32Array(count * 3);
   let idx = 0;
 
   function sphere(cx, cy, cz, r, n, spread = 0.03) {
+    const first = idx;
     for (let i = 0; i < n; i++, idx++) {
       const rr    = r + gaussian() * spread;
       const theta = Math.random() * Math.PI * 2;
@@ -193,6 +297,7 @@ export function earthAndMoon(count) {
       positions[idx * 3 + 1] = cy + rr * Math.cos(phi);
       positions[idx * 3 + 2] = cz + rr * Math.sin(phi) * Math.sin(theta);
     }
+    return { first, end: idx };
   }
 
   const moonDist  = 3.6;
@@ -201,13 +306,13 @@ export function earthAndMoon(count) {
   const moonZ = Math.sin(moonAngle) * moonDist;
 
   // Earth — dense spherical surface
-  sphere(0, 0, 0, 1.55, Math.floor(count * 0.46));
+  const earth = sphere(0, 0, 0, 1.55, Math.floor(count * 0.46));
 
   // Atmosphere — sparse haze shell outside Earth
-  sphere(0, 0, 0, 1.72, Math.floor(count * 0.08), 0.14);
+  const atmosphere = sphere(0, 0, 0, 1.72, Math.floor(count * 0.08), 0.14);
 
   // Moon — smaller sphere at orbital position
-  sphere(moonX, 0, moonZ, 0.42, Math.floor(count * 0.20));
+  const moon = sphere(moonX, 0, moonZ, 0.42, Math.floor(count * 0.20));
 
   // Background stars
   for (; idx < count; idx++) {
@@ -219,7 +324,27 @@ export function earthAndMoon(count) {
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
-  return positions;
+  // Each group turns rigidly about the Earth's vertical axis — for the moon
+  // that's its orbit, keeping the same face to the Earth.
+  function turn({ first, end }, angle, out) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    for (let i = first; i < end; i++) {
+      const x = positions[i * 3 + 0];
+      const z = positions[i * 3 + 2];
+      out[i * 3 + 0] = x * cos + z * sin;
+      out[i * 3 + 1] = positions[i * 3 + 1];
+      out[i * 3 + 2] = -x * sin + z * cos;
+    }
+  }
+
+  function advance(t, out) {
+    turn(earth, EARTH_SPIN * t, out);
+    turn(atmosphere, ATMOSPHERE_SPIN * t, out);
+    turn(moon, MOON_ORBIT * t, out);
+  }
+
+  return { positions, advance };
 }
 
 export function grid(count, { tilt = 0, width = 9, height = 9 } = {}) {

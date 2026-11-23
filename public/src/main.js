@@ -72,8 +72,23 @@ const particles = createParticles({
 });
 scene.add(particles.points);
 
-function travelViaGrid(to, via) {
-  particles.travel(to, { via, knot: GRID_KNOT, through: GRID_THROUGH });
+const clock = new Clock();
+let time = 0;
+
+// The shape the current journey is heading to and the one it left, each with
+// the time it formed, so moving shapes keep moving on arrival, through their
+// hold and as particles peel away from them (see shape.advance in shapes.js).
+let arriving = { shape: { positions: initialPositions }, born: 0 };
+let departing = null;
+
+function journeyTo(shape, options) {
+  departing = arriving;
+  arriving = { shape, born: time };
+  particles.travel(shape.positions, options);
+}
+
+function journeyViaGrid(shape, via) {
+  journeyTo(shape, { via, knot: GRID_KNOT, through: GRID_THROUGH });
 }
 
 // Journeys run in the spinning cloud's local space. Screen-aligned layouts
@@ -96,7 +111,7 @@ function facingCameraIn(seconds, positions) {
 
 // The page opens mid-journey, already on the grid and flowing into the
 // black hole (index 1) — the state machine starts at MORPH_TO_NEXT.
-travelViaGrid(shapeGenerators[1](PARTICLE_COUNT), initialPositions);
+journeyViaGrid(shapeGenerators[1](PARTICLE_COUNT), initialPositions);
 
 const isMobile    = window.matchMedia('(max-width: 540px)').matches || navigator.maxTouchPoints > 1;
 const isCellular  = navigator.connection?.type === 'cellular';
@@ -112,7 +127,7 @@ const machine = createStateMachine({
     // One journey covers dissolve → grid → next shape, so it's planned in
     // full here; the following phases only advance its progress.
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
-      travelViaGrid(
+      journeyViaGrid(
         shapeGenerators[state.shapeIndex](PARTICLE_COUNT),
         facingCameraIn(
           PHASE_DURATIONS[PHASE.DISSOLVE_TO_GRID],
@@ -123,9 +138,6 @@ const machine = createStateMachine({
   },
 });
 
-const clock = new Clock();
-let time = 0;
-
 // ─── Text-morph state ─────────────────────────────────────────────────────────
 // textShape is NEVER added to shapeGenerators — it only appears when the user
 // explicitly types "Ricardo Meza" in the terminal.
@@ -135,7 +147,7 @@ const TEXT_MORPH_SECONDS = 1.5;
 
 function triggerTextMorph() {
   agent?.onTextMorph();
-  particles.travel(facingCameraIn(TEXT_MORPH_SECONDS, textShape('Ricardo Meza', PARTICLE_COUNT)));
+  journeyTo({ positions: facingCameraIn(TEXT_MORPH_SECONDS, textShape('Ricardo Meza', PARTICLE_COUNT)) });
   textMorphActive  = true;
   textMorphT       = 0;
 }
@@ -146,20 +158,29 @@ function animate() {
   particles.setTime(time);
   particles.points.rotation.y = (particles.points.rotation.y + dt * SPIN_SPEED) % (Math.PI * 2);
 
+  let progress;
   if (textMorphActive) {
     textMorphT = Math.min(textMorphT + dt / TEXT_MORPH_SECONDS, 1.0);
-    particles.setProgress(textMorphT);
+    progress = textMorphT;
 
     if (textMorphT >= 1.0) {
       // Morph-in complete: the particles now rest on the text. Hand control
-      // back to the state machine at SHAPE_HOLD so the normal hold (3.5 s) →
+      // back to the state machine at SHAPE_HOLD so the normal hold (5.5 s) →
       // dissolve to grid → next shape cycle runs from here.
       textMorphActive = false;
       machine.forceShapeHold();
     }
   } else {
-    const state = machine.tick(dt);
-    particles.setProgress(journeyProgress(state));
+    progress = journeyProgress(machine.tick(dt));
+  }
+  particles.setProgress(progress);
+
+  if (arriving.shape.advance) {
+    particles.advanceTarget(arriving.shape.advance, time - arriving.born);
+  }
+  if (departing && progress >= 1) departing = null;
+  if (departing?.shape.advance) {
+    particles.advanceStart(departing.shape.advance, time - departing.born);
   }
 
   // Smooth parallax — lerp camera toward input-driven offset, keep looking at origin

@@ -6,7 +6,7 @@ export const PHASE = {
 };
 
 export const PHASE_DURATIONS = {
-  [PHASE.SHAPE_HOLD]: 3.5,
+  [PHASE.SHAPE_HOLD]: 5.5,
   [PHASE.DISSOLVE_TO_GRID]: 1.5,
   [PHASE.GRID_HOLD]: 0,
   [PHASE.MORPH_TO_NEXT]: 1.0,

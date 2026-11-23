@@ -11,10 +11,15 @@ import { generateColors, generateSparkles } from "./palette.js";
 // single uProgress in [0, 1]. Each leg is a cubic Hermite curve; both legs
 // share the same velocity at aVia, so particles ease off as they approach the
 // waypoint and pick speed back up as they leave it — they never stop there.
-// They only come to rest at the journey's two ends.
+// They only come to rest at the journey's two ends — and even there they keep
+// moving if the shape at that end moves: main.js rewrites position / aTarget
+// every frame for shapes with an advance() (see shapes.js), and aStartFade /
+// aTargetFade carry how visible each particle is in those shapes.
 const vertexShader = /* glsl */ `
   attribute vec3 aVia;
   attribute vec3 aTarget;
+  attribute float aStartFade;
+  attribute float aTargetFade;
   attribute vec3 aColor;
   attribute float aDelay;
   attribute vec4 aSpark; // x: base brightness, y: flash strength, z: phase, w: rate
@@ -49,12 +54,15 @@ const vertexShader = /* glsl */ `
     vec3 through = uThrough * 0.5 * ((aVia - position) / dur1 + (aTarget - aVia) / dur2);
 
     vec3 p;
+    float fade;
     if (uProgress < uKnot) {
       float u = clamp((uProgress - leave) / dur1, 0.0, 1.0);
       p = hermite(position, vec3(0.0), aVia, through * dur1, u);
+      fade = mix(aStartFade, 1.0, u);
     } else {
       float u = clamp((uProgress - uKnot) / dur2, 0.0, 1.0);
       p = hermite(aVia, through * dur2, aTarget, vec3(0.0), u);
+      fade = mix(1.0, aTargetFade, u);
     }
 
     vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
@@ -79,7 +87,7 @@ const vertexShader = /* glsl */ `
     // glint reads as its colour instead of washing out to white.
     float luma = dot(aColor, vec3(0.299, 0.587, 0.114));
     vec3 vivid = clamp(mix(vec3(luma), aColor, 3.2), 0.0, 1.0);
-    vColor = mix(aColor, vivid, min(flash * 1.5, 1.0)) * (brightness + flash * 1.4);
+    vColor = mix(aColor, vivid, min(flash * 1.5, 1.0)) * (brightness + flash * 1.4) * fade;
   }
 `;
 
@@ -113,6 +121,8 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
   geometry.setAttribute("position", new BufferAttribute(new Float32Array(initialPositions), 3));
   geometry.setAttribute("aVia", new BufferAttribute(new Float32Array(initialPositions), 3));
   geometry.setAttribute("aTarget", new BufferAttribute(new Float32Array(initialPositions), 3));
+  geometry.setAttribute("aStartFade", new BufferAttribute(new Float32Array(count).fill(1), 1));
+  geometry.setAttribute("aTargetFade", new BufferAttribute(new Float32Array(count).fill(1), 1));
   geometry.setAttribute("aColor", new BufferAttribute(generateColors(count), 3));
   geometry.setAttribute("aDelay", new BufferAttribute(delays, 1));
   geometry.setAttribute("aSpark", new BufferAttribute(generateSparkles(count), 4));
@@ -137,7 +147,13 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
   const points = new Points(geometry, material);
   points.frustumCulled = false;
 
-  const { position: startAttr, aVia: viaAttr, aTarget: targetAttr } = geometry.attributes;
+  const {
+    position: startAttr,
+    aVia: viaAttr,
+    aTarget: targetAttr,
+    aStartFade: startFadeAttr,
+    aTargetFade: targetFadeAttr,
+  } = geometry.attributes;
 
   // Begin a new journey from where the last one ended (aTarget) to `to`,
   // crossing `via` at progress `knot` at `through` × the legs' average speed.
@@ -146,6 +162,8 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
   function travel(to, { via = null, knot = 0.5, through = 1.5 } = {}) {
     const from = startAttr.array;
     from.set(targetAttr.array);
+    startFadeAttr.array.set(targetFadeAttr.array);
+    targetFadeAttr.array.fill(1);
     if (via) {
       viaAttr.array.set(via);
     } else {
@@ -156,9 +174,25 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
     startAttr.needsUpdate = true;
     viaAttr.needsUpdate = true;
     targetAttr.needsUpdate = true;
+    startFadeAttr.needsUpdate = true;
+    targetFadeAttr.needsUpdate = true;
     material.uniforms.uKnot.value = knot;
     material.uniforms.uThrough.value = through;
     material.uniforms.uProgress.value = 0;
+  }
+
+  // Let a moving shape rewrite the journey's start or end for time t
+  // (shape.advance from shapes.js).
+  function advanceStart(advance, t) {
+    advance(t, startAttr.array, startFadeAttr.array);
+    startAttr.needsUpdate = true;
+    startFadeAttr.needsUpdate = true;
+  }
+
+  function advanceTarget(advance, t) {
+    advance(t, targetAttr.array, targetFadeAttr.array);
+    targetAttr.needsUpdate = true;
+    targetFadeAttr.needsUpdate = true;
   }
 
   function setProgress(value) {
@@ -178,6 +212,8 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
     geometry,
     material,
     travel,
+    advanceStart,
+    advanceTarget,
     setProgress,
     setTime,
     setPixelRatio,
