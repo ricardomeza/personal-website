@@ -1,3 +1,5 @@
+import { breakScreen } from './broken-screen.js';
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PROMPT = '> ';
@@ -1128,67 +1130,16 @@ export class Terminal {
       this._scrollToBottom();
     }, delay + 100);
 
-    // After deletion message: black screen, then stripes for 1 s, then reload
-    setTimeout(() => {
+    // After the deletion message the screen goes black for 1 s, shows a
+    // broken panel for 5 s (see broken-screen.js), goes black for 3 s, reloads
+    setTimeout(async () => {
       const canvas = document.createElement('canvas');
-      canvas.style.cssText = 'position:fixed;inset:0;z-index:99999;display:block';
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.style.cssText =
+        'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;display:block;background:#000';
       document.body.appendChild(canvas);
-      const ctx = canvas.getContext('2d');
-      const W = canvas.width, H = canvas.height;
-
-      // Black screen (2 s)
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-
-      // After 2 s of black: show LCD stripes for 1 s
-      setTimeout(() => {
-        const flipSides = Math.random() < 0.5;
-        const splitX    = Math.floor(W * (0.42 + Math.random() * 0.16));
-        const lineSide  = flipSides ? { from: splitX + 30, to: W - 10 } : { from: 10, to: splitX - 30 };
-
-        const LINE_PALETTE = [
-          '#a855f7','#c084fc','#d8b4fe','#22d3ee','#06b6d4','#67e8f9',
-          '#e879f9','#ec4899','#f9a8d4','#ffffff','#86efac','#7dd3fc',
-        ];
-        const lines = [];
-        let lx = lineSide.from + Math.floor(Math.random() * 30);
-        while (lx < lineSide.to - 5) {
-          const cr = Math.random();
-          const clusterSize =
-            cr < 0.18 ? 1 + Math.floor(Math.random() * 2)   :
-            cr < 0.55 ? 3 + Math.floor(Math.random() * 6)   :
-            cr < 0.88 ? 8 + Math.floor(Math.random() * 12)  :
-                       18 + Math.floor(Math.random() * 18);
-
-          for (let i = 0; i < clusterSize && lx < lineSide.to - 2; i++) {
-            const w = Math.random() < 0.78 ? 1 : 2;
-            lines.push({ x: lx, w, color: LINE_PALETTE[Math.floor(Math.random() * LINE_PALETTE.length)] });
-            lx += w + (Math.random() < 0.35 ? 1 : 0);
-          }
-
-          const gr = Math.random();
-          lx += gr < 0.32 ? 2  + Math.floor(Math.random() * 9)   :
-                gr < 0.7  ? 14 + Math.floor(Math.random() * 45)  :
-                gr < 0.92 ? 60 + Math.floor(Math.random() * 80)  :
-                           140 + Math.floor(Math.random() * 120);
-        }
-
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, W, H);
-        for (const line of lines) {
-          ctx.fillStyle = line.color;
-          ctx.fillRect(line.x, 0, line.w, H);
-        }
-
-        // After 1 s of stripes: black screen for 3 s, then reload
-        setTimeout(() => {
-          ctx.fillStyle = '#000';
-          ctx.fillRect(0, 0, W, H);
-          setTimeout(() => window.location.reload(), 3000);
-        }, 1000);
-      }, 2000);
+      await new Promise(r => setTimeout(r, 1000));
+      await breakScreen(canvas, 5000);
+      setTimeout(() => window.location.reload(), 3000);
     }, delay + 700);
   }
 
