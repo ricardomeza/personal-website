@@ -503,7 +503,7 @@ export class Terminal {
     this._println('usage: about [topic]  ·  a few topics are hidden — guess away.', 'term-line--dim');
   }
 
-  _aboutPrint(name, { summary, facts = [] }) {
+  _aboutPrint(name, { summary, facts = [], link }) {
     this._println(`about ${name}:`, 'term-line--bright');
     this._printBlank();
     if (summary) {
@@ -512,6 +512,14 @@ export class Terminal {
       this._printBlank();
     }
     for (const { label, text } of facts) this._printRow(label, text);
+    if (link) {
+      this._printBlank();
+      this._printRaw(
+        `<span class="term-line--output">${escapeHtml(link.text)} </span>` +
+        `<a href="${escapeHtml(link.href)}" target="_blank" rel="noopener noreferrer">→ ${escapeHtml(link.href)}</a>`,
+        'term-line--link'
+      );
+    }
     this._aboutMore(name);
   }
 

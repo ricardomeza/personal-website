@@ -217,7 +217,8 @@ const terminal = new Terminal({
     { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'monitors room lighting to protect your sleep' },
     { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'AI creative assistant — express yourself through a story' },
   ],
-  // `about <topic>` — each key is a topic; `desc` shows in the `about` index.
+  // `about <topic>` — each key is a topic; `desc` shows in the `about` index
+  // and an optional `link` closes the topic with a line pointing to it.
   // contact, plus a few hidden ones, are built into terminal.js.
   about: {
     me: {
@@ -234,10 +235,11 @@ const terminal = new Terminal({
       facts: [
         { label: 'clara',   text: "Labs Team, now — full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform" },
         { label: 'conekta', text: 'Frontend Architect' },
-        { label: 'rappi',   text: 'senior engineer' },
-        { label: 'metamap', text: 'senior engineer' },
-        { label: 'mozilla', text: '4 years as Main Manager for Mozilla México — localized Firefox into Mexican Spanish and indigenous languages' },
+        { label: 'rappi',   text: 'Senior Engineer' },
+        { label: 'metamap', text: 'Senior Engineer' },
+        { label: 'mozilla', text: 'Main Manager for Mozilla México, 4 years — localized Firefox into Mexican Spanish and indigenous languages' },
       ],
+      link: { text: 'see my full experience on LinkedIn', href: 'https://www.linkedin.com/in/ricardomeza/' },
     },
     site: {
       desc: 'how this site works',
