@@ -7,7 +7,7 @@ const HOSTNAME = window.location.hostname || 'ricardomeza.dev';
 const HOME     = '/home/visitor';
 
 const COMMAND_NAMES = [
-  'apps', 'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit',
+  'about', 'apps', 'cat', 'cd', 'clear', 'cls', 'date', 'df', 'echo', 'env', 'exit',
   'file', 'free', 'hack', 'help', 'history', 'hostname', 'locale', 'ls', 'man',
   'matrix', 'neofetch', 'nproc', 'pwd', 'rm', 'sl', 'sudo', 'traceroute',
   'uname', 'uptime', 'which', 'whoami',
@@ -40,9 +40,23 @@ function detectOS() {
   return 'Unknown';
 }
 
+function detectEngine() {
+  const ua = navigator.userAgent;
+  return ua.includes('Firefox') ? 'Gecko/Firefox'
+       : (ua.includes('Safari') && !ua.includes('Chrome')) ? 'WebKit/Safari'
+       : 'Blink/Chromium';
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
 // ─── Man pages ────────────────────────────────────────────────────────────────
 
 const MAN_PAGES = {
+  about:      ['about me, my work, this site', 'about [topic]',      'Without a topic, lists what you can ask about: me, work, site, contact. A few topics are hidden. Firefox-style about:topic also works.'],
   apps:       ['list available apps',          'apps',               'Lists all launchable apps with descriptions. Type the app name (or ./appname) to launch it in a new tab.'],
   cat:        ['concatenate and print files',  'cat [file]',         'Prints the contents of a file. For symlinks shows the URL; for executables shows the script body. cat @name also works.'],
   cd:         ['change directory',             'cd [dir]',           'Changes the current working directory. Knows /, /home, /home/visitor, and ~. Symlinks and executables are not directories.'],
@@ -78,9 +92,10 @@ const MAN_PAGES = {
 // ─── Terminal class ───────────────────────────────────────────────────────────
 
 export class Terminal {
-  constructor({ links = [], apps = [], onNameSubmit = null, onCommand = null, extraEnv = null } = {}) {
+  constructor({ links = [], apps = [], about = {}, onNameSubmit = null, onCommand = null, extraEnv = null } = {}) {
     this._links        = links;
     this._apps         = apps;
+    this._about        = about;         // { topic: { desc, summary?, facts: [{ label, text }] } } for `about`
     this._onNameSubmit = onNameSubmit;  // called when "Ricardo Meza" is entered
     this._onCommand    = onCommand;     // called on any other command (resumes particle cycle)
     this._extraEnv     = extraEnv;      // () => ['KEY=value', …] appended to `env` output
@@ -227,9 +242,13 @@ export class Terminal {
       if (this._onNameSubmit) this._onNameSubmit();
       // Post-morph nudge: appears ~2.5 s after Enter, once the name shape is
       // fully rendered and clearly visible (morph-in takes ~1.5 s).
-      if (this._apps.length) {
+      const hints = [
+        this._about.me    && "'about me'",
+        this._apps.length && "'apps' to see what I've built",
+      ].filter(Boolean);
+      if (hints.length) {
         setTimeout(() => {
-          this._println("  — try 'apps' to see what I've built.", 'term-line--dim');
+          this._println(`  — try ${hints.join(', or ')}.`, 'term-line--dim');
           this._scrollToBottom();
         }, 2500);
       }
@@ -279,15 +298,29 @@ export class Terminal {
 
   _tabComplete() {
     const val     = this._relayEl.value;
+
+    // `about <topic>`: an empty prefix lists only the public topics; hidden
+    // ones complete once the visitor starts guessing.
+    const aboutArg = val.match(/^\s*about\s+(\S*)$/);
+    if (aboutArg) {
+      const prefix = aboutArg[1].toLowerCase();
+      const topics = this._aboutTopics({ hidden: prefix !== '' });
+      this._complete(val, topics.filter(t => t.startsWith(prefix)), t => `about ${t}`);
+      return;
+    }
+
     const parts   = val.trim().split(/\s+/);
     if (parts.length !== 1 || !parts[0]) return;
 
     const prefix  = parts[0].replace(/^\.\//, '');
     const allNames = [...COMMAND_NAMES, ...this._apps.map(a => a.label)];
-    const matches = allNames.filter(c => c.startsWith(prefix));
+    this._complete(val, allNames.filter(c => c.startsWith(prefix)), c => c);
+  }
 
+  // One match fills the line; several are listed under a copy of the prompt.
+  _complete(val, matches, toInput) {
     if (matches.length === 1) {
-      this._setInput(matches[0] + ' ');
+      this._setInput(toInput(matches[0]) + ' ');
     } else if (matches.length > 1) {
       this._println(PROMPT + val, 'term-line--prompt');
       this._println(matches.join('  '), 'term-line--dim');
@@ -306,7 +339,8 @@ export class Terminal {
     }
 
     // Strip leading ./ so "./lightguard" resolves identically to "lightguard"
-    const bare = trimmed.replace(/^\.\//, '');
+    // Firefox-style "about:me" is the same as "about me"
+    const bare = trimmed.replace(/^\.\//, '').replace(/^about:/, 'about ');
     const [cmd, ...args] = bare.split(/\s+/);
     const handler = this._commands[cmd];
 
@@ -349,6 +383,7 @@ export class Terminal {
   get _commands() {
     return {
       help:       ()     => this._cmdHelp(),
+      about:      (args) => this._cmdAbout(args),
       clear:      ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
       cls:        ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
       apps:       ()     => this._cmdApps(),
@@ -389,6 +424,7 @@ export class Terminal {
     this._printBlank();
     const cmds = [
       ['help',           'show this message'],
+      ['about [topic]',  'me, my work, this site…'],
       ['clear, cls',     'clear the terminal  (ctrl+l)'],
       ['echo [text]',    'print text'],
       ['whoami',         'current user'],
@@ -417,6 +453,139 @@ export class Terminal {
       this._println(`  ${cmd.padEnd(18)} ${desc}`);
     }
     this._printBlank();
+  }
+
+  // ── about ───────────────────────────────────────────────────────────────
+  // Personal topics are data passed in from main.js (this._about). The rest
+  // are built in here because they read the browser (you), the links
+  // (contact), or are just jokes. Hidden topics stay out of the index and out
+  // of empty-prefix tab completion — they're for visitors who guess.
+
+  get _aboutBuiltins() {
+    return {
+      contact:    { desc: 'where to find me', run: () => this._aboutContact() },
+      you:        { hidden: true, run: () => this._aboutYou() },
+      life:       { hidden: true, run: () => this._aboutLife() },
+      universe:   { hidden: true, run: () => this._aboutUniverse() },
+      everything: { hidden: true, run: () => this._aboutEverything() },
+      about:      { hidden: true, run: () => this._aboutAbout() },
+      blank:      { hidden: true, run: () => this._println('(this page intentionally left blank)', 'term-line--dim') },
+      config:     { hidden: true, run: () => this._aboutConfig() },
+    };
+  }
+
+  // Topic names in display order: data topics first, then built-ins.
+  _aboutTopics({ hidden = false } = {}) {
+    const builtins = Object.entries(this._aboutBuiltins)
+      .filter(([name, t]) => (hidden || !t.hidden) && !(name in this._about))
+      .map(([name]) => name);
+    return [...Object.keys(this._about), ...builtins];
+  }
+
+  _cmdAbout(args) {
+    const topic = (args[0] ?? '').toLowerCase();
+    if (!topic) return this._aboutIndex();
+    const data = this._about[topic];
+    if (data) return this._aboutPrint(topic, data);
+    const builtin = this._aboutBuiltins[topic];
+    if (builtin) return builtin.run();
+    this._println(`about: no entry for ${args[0]}`, 'term-line--error');
+    this._println("type 'about' to see the topics.", 'term-line--dim');
+  }
+
+  _aboutIndex() {
+    this._println('about what?', 'term-line--bright');
+    this._printBlank();
+    for (const name of this._aboutTopics()) {
+      this._printRow(name, this._about[name]?.desc ?? this._aboutBuiltins[name]?.desc ?? '');
+    }
+    this._printBlank();
+    this._println('usage: about [topic]  ·  a few topics are hidden — guess away.', 'term-line--dim');
+  }
+
+  _aboutPrint(name, { summary, facts = [] }) {
+    this._println(`about ${name}:`, 'term-line--bright');
+    this._printBlank();
+    if (summary) {
+      // Indented paragraph — wrapped lines keep the 2ch indent
+      this._printRaw(`<div style="padding-left:2ch">${escapeHtml(summary)}</div>`);
+      this._printBlank();
+    }
+    for (const { label, text } of facts) this._printRow(label, text);
+    this._aboutMore(name);
+  }
+
+  // Footer pointing at the other public topics
+  _aboutMore(current) {
+    const others = this._aboutTopics().filter(n => n !== current);
+    if (!others.length) return;
+    this._printBlank();
+    this._println(`more: ${others.map(n => `about ${n}`).join('  ·  ')}`, 'term-line--dim');
+  }
+
+  _aboutContact() {
+    this._println('about contact:', 'term-line--bright');
+    this._printBlank();
+    for (const link of this._links) this._printRow(link.label, link.href, link.href);
+    this._aboutMore('contact');
+  }
+
+  _aboutYou() {
+    this._println('about you:', 'term-line--bright');
+    this._printBlank();
+    this._printRow('user',     USER);
+    this._printRow('system',   `${detectOS()} · ${detectEngine()}`);
+    this._printRow('language', navigator.language);
+    this._printRow('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);
+    this._printRow('screen',   `${screen.width}x${screen.height}`);
+    this._printRow('here for', this._uptimeShort());
+    this._printBlank();
+    this._println('nice to meet you.', 'term-line--dim');
+  }
+
+  _aboutLife() {
+    this._println('42', 'term-line--bright');
+    this._println('— the answer to life, the universe and everything. (douglas adams)', 'term-line--dim');
+  }
+
+  _aboutUniverse() {
+    this._println('~93 billion light-years across — the observable part, anyway.', 'term-line--bright');
+    this._println("the one behind this text is 20,000 particles. close enough.", 'term-line--dim');
+  }
+
+  _aboutEverything() {
+    this._println("that's a lot. let's start smaller:", 'term-line--bright');
+    this._println("try 'about me'.", 'term-line--dim');
+  }
+
+  _aboutAbout() {
+    this._println(`${'about: '.repeat(9)}…`);
+    this._println('Uncaught RangeError: Maximum call stack size exceeded', 'term-line--error');
+    for (let i = 0; i < 3; i++) this._println('    at about (about:about)', 'term-line--dim');
+  }
+
+  _aboutConfig() {
+    this._println('⚠ proceed with caution', 'term-line--bright');
+    this._println('changing advanced settings may void your warranty.');
+    this._printBlank();
+    this._println("...kidding. there's nothing to configure — it's a website.", 'term-line--dim');
+    this._println("a nod to firefox's about:config — I spent 4 years localizing firefox at mozilla méxico.", 'term-line--dim');
+  }
+
+  // Label + text with a hanging indent, so wrapped text lines up under where
+  // it began. With href the text becomes a link. Shared by `apps` and `about`.
+  _printRow(label, text, href = null) {
+    const body = href
+      ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`
+      : `<span class="term-line--output">${escapeHtml(text)}</span>`;
+    this._printRaw(
+      `<div style="padding-left:18ch;text-indent:-18ch">` +
+      `  <span class="term-line--dim">▸ </span>` +
+      `<span class="term-line--bright">${escapeHtml(label.padEnd(14))}</span>` +
+      body +
+      `</div>`,
+      href ? 'term-line--link' : 'term-line--output'
+    );
   }
 
   _cmdLs(args) {
@@ -510,17 +679,7 @@ export class Terminal {
     this._println('available apps:', 'term-line--bright');
     this._printBlank();
     for (const app of this._apps) {
-      // Hanging indent: padding-left = label column (2 indent + 14 padEnd = 16ch),
-      // text-indent pulls the first line back so the label starts at column 0.
-      // Wrapped description lines then align with where the desc began.
-      this._printRaw(
-        `<div style="padding-left:18ch;text-indent:-18ch">` +
-        `  <span class="term-line--dim">▸ </span>` +
-        `<span class="term-line--bright">${app.label.padEnd(14)}</span>` +
-        `<span class="term-line--output">${app.desc}</span>` +
-        `</div>`,
-        'term-line--output'
-      );
+      this._printRow(app.label, app.desc);
       this._printRaw(
         `  ${''.padEnd(16)}<a href="${app.href}" target="_blank" rel="noopener noreferrer">→ ${app.href}</a>`,
         'term-line--link'
@@ -634,10 +793,7 @@ export class Terminal {
 
   _cmdEnv() {
     const tz       = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const ua       = navigator.userAgent;
-    const engine   = ua.includes('Firefox') ? 'Gecko/Firefox'
-                   : (ua.includes('Safari') && !ua.includes('Chrome')) ? 'WebKit/Safari'
-                   : 'Blink/Chromium';
+    const engine   = detectEngine();
     const platform = navigator.platform || 'Unknown';
     const vars = [
       `USER=${USER}`,
@@ -654,6 +810,15 @@ export class Terminal {
       ...(this._extraEnv?.() ?? []),
     ];
     for (const v of vars) this._println(v);
+  }
+
+  // Session age as "1h 2m", "3m 4s" or "5s"
+  _uptimeShort() {
+    const sec = Math.floor((Date.now() - this._startTime) / 1000);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
   }
 
   _cmdUptime() {
@@ -757,19 +922,11 @@ export class Terminal {
 
   _cmdNeofetch() {
     const os     = detectOS();
-    const ua     = navigator.userAgent;
-    const engine = ua.includes('Firefox') ? 'Gecko/Firefox'
-                 : (ua.includes('Safari') && !ua.includes('Chrome')) ? 'WebKit/Safari'
-                 : 'Blink/Chromium';
+    const engine = detectEngine();
     const cores     = navigator.hardwareConcurrency ?? '?';
     const res       = `${screen.width}x${screen.height}`;
     const tz        = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const elapsed   = Date.now() - this._startTime;
-    const sec       = Math.floor(elapsed / 1000);
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    const uptimeStr = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+    const uptimeStr = this._uptimeShort();
 
     // Block ASCII art using Unicode box-drawing characters.
     // Spacing tuned to align in fallback font (Menlo on macOS) where

@@ -196,6 +196,38 @@ const terminal = new Terminal({
     { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'monitors room lighting to protect your sleep' },
     { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'AI creative assistant — express yourself through a story' },
   ],
+  // `about <topic>` — each key is a topic; `desc` shows in the `about` index.
+  // contact, plus a few hidden ones, are built into terminal.js.
+  about: {
+    me: {
+      desc: 'who I am',
+      summary: 'Fullstack/AI engineer and creator. I build production-ready LLM-powered products.',
+      facts: [
+        { label: 'based in',   text: 'Mexico City' },
+        { label: 'now',        text: 'Innovation Team @ Clara — designing and shipping full-stack AI tools from 0 to 1' },
+        { label: 'experience', text: '15+ years across frontend architecture, full-stack development and team leadership' },
+      ],
+    },
+    work: {
+      desc: "where I've worked",
+      facts: [
+        { label: 'clara',   text: "Innovation Team, now — full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform" },
+        { label: 'conekta', text: 'Frontend Architect' },
+        { label: 'rappi',   text: 'senior engineer' },
+        { label: 'metamap', text: 'senior engineer' },
+        { label: 'mozilla', text: '4 years as Main Manager for Mozilla México — localized Firefox into Mexican Spanish and indigenous languages' },
+      ],
+    },
+    site: {
+      desc: 'how this site works',
+      facts: [
+        { label: 'particles', text: '20,000 points morphing between a galaxy, a black hole, the solar system and the earth & moon — Three.js + custom shaders' },
+        { label: 'terminal',  text: "vanilla JS, no framework — you're using it right now" },
+        { label: 'ai panel',  text: 'Llama 3.2 1B running locally in your browser via WebLLM (desktop only)' },
+        { label: 'hosting',   text: 'static assets on Cloudflare Workers' },
+      ],
+    },
+  },
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
   extraEnv: () => [`MOTION_SENSOR=${parallaxInput.status}`],  // tilt diagnostics via `env`
 });

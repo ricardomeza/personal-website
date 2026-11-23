@@ -19,4 +19,4 @@ Before specializing in AI product development I served as Frontend Architect at 
 
 ## This site
 
-ricardomeza.com is an interactive portfolio with a 3D particle system and a Unix-style terminal emulator. Type `help` in the terminal to explore.
+ricardomeza.com is an interactive portfolio with a 3D particle system and a Unix-style terminal emulator. Type `about me` or `help` in the terminal to explore.
