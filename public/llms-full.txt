@@ -42,7 +42,7 @@ Dates and the full history are on LinkedIn: https://www.linkedin.com/in/ricardom
 
 https://ricardomeza.com/lightguard
 
-Monitors room lighting to protect your sleep. A web app that uses the device camera to estimate the colour temperature of the ambient light, knows when it's evening, and warns when cool artificial light may affect your circadian rhythm and sleep, with tips to improve your environment. Camera frames stay on the device. Available in English and Spanish.
+Protect your sleep from artificial light. Unlike screen filters, LightGuard tells you when the place you're in is affecting you: a web app that uses the device camera to estimate the colour temperature of the ambient light, knows when it's evening, and warns when cool artificial light may affect your circadian rhythm and sleep, with tips to improve your environment. Camera frames stay on the device. Available in English and Spanish.
 
 ### ScribuGo
 

@@ -240,7 +240,7 @@ const terminal = new Terminal({
     { label: 'linkedin', href: 'https://www.linkedin.com/in/ricardomeza/' },
   ],
   apps: [
-    { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: 'monitors room lighting to protect your sleep' },
+    { label: 'lightguard', href: 'https://ricardomeza.com/lightguard', desc: "protect your sleep from artificial light — it tells you when the place you're in is affecting you" },
     { label: 'scribugo',   href: 'https://scribugo.com',               desc: 'stories made for you — you answer nine questions, the AI writes it and you read it' },
   ],
   // `about <topic>` — each key is a topic; `desc` shows in the `about` index

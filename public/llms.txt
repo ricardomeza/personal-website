@@ -18,7 +18,7 @@ Full experience: https://www.linkedin.com/in/ricardomeza/
 
 ## Apps
 
-- [LightGuard](https://ricardomeza.com/lightguard): monitors room lighting to protect your sleep
+- [LightGuard](https://ricardomeza.com/lightguard): protect your sleep from artificial light — it tells you when the place you're in is affecting you
 - [ScribuGo](https://scribugo.com/): stories made for you — you answer nine questions, the AI writes it and you read it
 
 ## Contact and profiles
