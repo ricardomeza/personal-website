@@ -48,7 +48,7 @@ Monitors room lighting to protect your sleep. A web app that uses the device cam
 
 https://scribugo.com/
 
-AI creative assistant — express yourself through a story. ScribuGo writes a story made for you from your answers: something you want to read, or what you feel but don't know how to say. The site is in Spanish.
+Stories made for you. You answer nine questions; an AI writer drafts the story, an AI editor reviews it, and you read it — something you want to read, or what you feel but don't know how to say. Available in Spanish and English.
 
 ## Contact
 
