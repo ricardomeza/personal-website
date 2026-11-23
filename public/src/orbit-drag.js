@@ -140,15 +140,25 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
   window.addEventListener('blur', end);
 
   // ─── Touch: hold, then slide ──────────────────────────────────────────────
-  let hold = null; // { id, x, y, timer, taken }
+  let hold = null; // { id, x, y, start, timer, taken, moves, blocked }
 
+  // How the last touch went, for the terminal's `env` on the device itself.
+  let touchLog = 'no touch yet';
+
+  // By index: TouchList isn't iterable in every browser.
   function find(touches) {
-    for (const t of touches) if (t.identifier === hold.id) return t;
+    for (let i = 0; i < touches.length; i++) {
+      if (touches[i].identifier === hold.id) return touches[i];
+    }
     return null;
   }
 
-  function letGo() {
+  function letGo(why) {
     if (!hold) return;
+    const ms = Math.round(performance.now() - hold.start);
+    touchLog = hold.taken
+      ? `held, ${hold.moves} moves (${hold.blocked} kept from scrolling), ${why} at ${ms}ms`
+      : `let go before the hold: ${why} at ${ms}ms`;
     clearTimeout(hold.timer);
     hold = null;
     end();
@@ -157,11 +167,18 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
   window.addEventListener('touchstart', (e) => {
     lastTouch = performance.now();
     // A second finger is a pinch, not a turn.
-    if (e.touches.length > 1) return letGo();
-    letGo(); // one whose touchend never came
+    if (e.touches.length > 1) return letGo('second finger');
+    letGo('touchend never came');
     const t = e.changedTouches[0];
-    if (!t || (e.target instanceof Element && e.target.closest(INTERACTIVE))) return;
-    hold = { id: t.identifier, x: t.clientX, y: t.clientY, taken: false };
+    if (!t) return;
+    if (e.target instanceof Element && e.target.closest(INTERACTIVE)) {
+      touchLog = 'started on a link or input';
+      return;
+    }
+    hold = {
+      id: t.identifier, x: t.clientX, y: t.clientY, start: performance.now(),
+      taken: false, moves: 0, blocked: 0,
+    };
     hold.timer = setTimeout(() => {
       hold.taken = true;
       begin('touch', hold.x, hold.y);
@@ -176,10 +193,14 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
     const t = find(e.changedTouches);
     if (!t) return;
     if (hold.taken) {
-      if (e.cancelable) e.preventDefault();
+      hold.moves++;
+      if (e.cancelable) {
+        e.preventDefault();
+        hold.blocked++;
+      }
       move(t.clientX, t.clientY);
     } else if (Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > HOLD_SLOP) {
-      letGo(); // moved off before the hold took: a scroll
+      letGo('moved'); // before the hold took: a scroll
     } else {
       hold.x = t.clientX; // the drag starts wherever the finger is when it takes
       hold.y = t.clientY;
@@ -191,7 +212,7 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
     if (!hold || !find(e.changedTouches)) return;
     // After a hold, lifting the finger isn't a tap: no click, so no keyboard.
     if (hold.taken && e.cancelable) e.preventDefault();
-    letGo();
+    letGo(e.type);
   };
   window.addEventListener('touchend', release, { passive: false });
   window.addEventListener('touchcancel', release);
@@ -213,5 +234,9 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
     get azimuth()   { return view.az; },
     get elevation() { return view.el; },
     get zoom()      { return view.zoom; },
+    get status() {
+      if (!hold) return touchLog;
+      return hold.taken ? `holding, ${hold.moves} moves (${hold.blocked} kept from scrolling)` : 'waiting for the hold';
+    },
   };
 }

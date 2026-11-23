@@ -30,6 +30,22 @@ html.is-orbiting * {
   -webkit-touch-callout: none;
 }
 
+/* On touch screens a held finger turns the scene. iOS decides when the
+   finger lands whether a long press will select text, and once it does it
+   takes the touch from the page and the drag dies, so there the terminal's
+   text can't be selected. Links keep their long-press preview. */
+@media (hover: none), (pointer: coarse) {
+  #terminal,
+  #scene {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  #terminal a {
+    -webkit-touch-callout: default;
+  }
+}
+
 /* ─── Relay input — off-screen, never visible ────────────────── */
 
 #terminal__relay {

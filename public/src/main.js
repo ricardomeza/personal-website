@@ -298,6 +298,7 @@ const terminal = new Terminal({
     },
   },
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
-  extraEnv: () => [`MOTION_SENSOR=${parallaxInput.status}`],  // tilt diagnostics via `env`
+  // Tilt and hold-and-slide diagnostics via `env`, for checking on a phone.
+  extraEnv: () => [`MOTION_SENSOR=${parallaxInput.status}`, `TOUCH_DRAG=${orbit.status}`],
 });
 terminal.onCommand = (cmd, args) => agent?.onTerminalCommand(cmd, args);
