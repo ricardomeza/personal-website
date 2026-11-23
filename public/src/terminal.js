@@ -2,6 +2,10 @@
 
 const PROMPT = '> ';
 
+// Pre-filled on the input line: Enter spells it in particles, and typing
+// anything else replaces it (see _prefillName and the input handler).
+const NAME = 'Ricardo Meza';
+
 const USER     = 'visitor';
 const HOSTNAME = window.location.hostname || 'ricardomeza.dev';
 const HOME     = '/home/visitor';
@@ -114,8 +118,7 @@ export class Terminal {
     // Set the prompt character
     this._promptEl.textContent = PROMPT;
 
-    // Pre-fill "Ricardo Meza" — user can delete it and start typing commands
-    this._setInput('Ricardo Meza');
+    this._prefillName();
 
     this._bindEvents();
     this._printBoot();
@@ -157,6 +160,14 @@ export class Terminal {
   _setInput(val) {
     this._relayEl.value  = val;
     this._typedEl.textContent = val;
+    this._prefilled = false;
+  }
+
+  // Puts the name on the input line as a suggestion: Enter submits it, but the
+  // first edit replaces it instead of appending to it (see the input handler).
+  _prefillName() {
+    this._setInput(NAME);
+    this._prefilled = true;
   }
 
   // ── Events ─────────────────────────────────────────────────────────────────
@@ -172,6 +183,14 @@ export class Terminal {
       if (this._busy) {
         this._relayEl.value = '';
         return;
+      }
+      // Typing or pasting over the pre-filled name replaces it and deleting
+      // clears it, so a visitor who just starts typing "about me" doesn't get
+      // "Ricardo Mezaabout me".
+      if (this._prefilled) {
+        const val = this._relayEl.value;
+        this._relayEl.value = val.startsWith(NAME) ? val.slice(NAME.length) : '';
+        this._prefilled = false;
       }
       this._typedEl.textContent = this._relayEl.value;
       // First user keystroke (typing or deleting) hides the boot hint
@@ -237,18 +256,18 @@ export class Terminal {
 
     // Special case: "Ricardo Meza" triggers the particle name animation.
     // No command output — the visual effect speaks for itself.
-    if (raw.toLowerCase() === 'ricardo meza') {
+    if (raw.toLowerCase() === NAME.toLowerCase()) {
       this._dismissHelper();
       if (this._onNameSubmit) this._onNameSubmit();
       // Post-morph nudge: appears ~2.5 s after Enter, once the name shape is
       // fully rendered and clearly visible (morph-in takes ~1.5 s).
       const hints = [
-        this._about.me    && "'about me'",
-        this._apps.length && "'apps' to see what I've built",
+        this._about.me    && `<span class="term-line--bright">about me</span>`,
+        this._apps.length && `<span class="term-line--bright">apps</span> to see what I've built`,
       ].filter(Boolean);
       if (hints.length) {
         setTimeout(() => {
-          this._println(`  — try ${hints.join(', or ')}.`, 'term-line--dim');
+          this._printRaw(`  — try ${hints.join(', or ')}.`, 'term-line--dim');
           this._scrollToBottom();
         }, 2500);
       }
@@ -363,19 +382,24 @@ export class Terminal {
   // ── Boot message ───────────────────────────────────────────────────────────
 
   _printBoot() {
-    // Track the helper elements so we can remove them the moment the user
-    // starts typing or deleting the pre-filled "Ricardo Meza" input.
-    this._helperEl   = this._println("type 'help' for available commands.", 'term-line--dim');
-    this._helperEl2  = this._apps.length
-      ? this._println("type 'apps' to explore my projects.", 'term-line--dim')
-      : null;
-    this._helperGap  = this._printBlank();
+    // Track the helper lines so we can remove them the moment the user starts
+    // typing or deleting the pre-filled name. Commands are highlighted rather
+    // than quoted, so visitors don't type the quotes.
+    const hint = (cmd, rest) => this._printRaw(
+      `type <span class="term-line--bright">${cmd}</span> ${rest}`,
+      'term-line--dim'
+    );
+    this._helpers = [
+      this._about.me    && hint('about me', 'and press enter to get to know me.'),
+      this._apps.length && hint('apps', 'to explore my projects.'),
+      hint('help', 'to see all commands.'),
+      this._printBlank(),
+    ].filter(Boolean);
   }
 
   _dismissHelper() {
-    if (this._helperEl)  { this._helperEl.remove();  this._helperEl  = null; }
-    if (this._helperEl2) { this._helperEl2.remove(); this._helperEl2 = null; }
-    if (this._helperGap) { this._helperGap.remove(); this._helperGap = null; }
+    for (const el of this._helpers ?? []) el.remove();
+    this._helpers = [];
   }
 
   // ── Commands map ───────────────────────────────────────────────────────────
@@ -384,8 +408,8 @@ export class Terminal {
     return {
       help:       ()     => this._cmdHelp(),
       about:      (args) => this._cmdAbout(args),
-      clear:      ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
-      cls:        ()     => { this._clearOutput(); this._setInput('Ricardo Meza'); this._printBoot(); },
+      clear:      ()     => { this._clearOutput(); this._prefillName(); this._printBoot(); },
+      cls:        ()     => { this._clearOutput(); this._prefillName(); this._printBoot(); },
       apps:       ()     => this._cmdApps(),
       cat:        (args) => this._cmdCat(args),
       echo:       (args) => this._println(args.join(' ')),
@@ -987,7 +1011,7 @@ export class Terminal {
     this._busy = true;
     setTimeout(() => {
       this._clearOutput();
-      this._setInput('Ricardo Meza');
+      this._prefillName();
       this._printBoot();
       this._busy = false;
     }, 3000);
