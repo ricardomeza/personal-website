@@ -147,6 +147,10 @@ export class Terminal {
 
   _printBlank() { return this._println(''); }
 
+  // _printBlank's empty line collapses to zero height; this one keeps a full
+  // line of space, for a separation that has to show.
+  _printGap() { return this._println('\u00a0'); }
+
   _clearOutput() { this._outputEl.innerHTML = ''; }
 
   _scrollToBottom() {
@@ -195,9 +199,9 @@ export class Terminal {
                             : val;
         this._prefilled = false;
       }
+      // The boot hints stay while the visitor types, so they can follow them;
+      // once a command runs they scroll up with the rest of the output.
       this._typedEl.textContent = this._relayEl.value;
-      // First user keystroke (typing or deleting) hides the boot hint
-      this._dismissHelper();
     });
 
     // Relay input: handle special keys
@@ -385,19 +389,24 @@ export class Terminal {
   // ── Boot message ───────────────────────────────────────────────────────────
 
   _printBoot() {
-    // Track the helper lines so we can remove them the moment the user starts
-    // typing or deleting the pre-filled name. Commands are highlighted rather
-    // than quoted, so visitors don't type the quotes.
-    const hint = (cmd, rest) => this._printRaw(
+    // Track the helper lines so submitting the name can remove them: the
+    // particles spell it out and a shorter nudge follows (see _submit).
+    this._helpers = [...this._printHints(), this._printBlank()];
+  }
+
+  // The welcome hints, minus the one for `except` — the command that just ran
+  // and printed them. Commands are highlighted rather than quoted, so visitors
+  // don't type the quotes. Returns the printed lines.
+  _printHints(except = null) {
+    const hints = [
+      this._about.me    && ['about me', 'and press enter to get to know me.'],
+      this._apps.length && ['apps',     'to explore my projects.'],
+      ['help', 'to see all commands.'],
+    ].filter(h => h && h[0] !== except);
+    return hints.map(([cmd, rest]) => this._printRaw(
       `type <span class="term-line--bright">${cmd}</span> ${rest}`,
       'term-line--dim'
-    );
-    this._helpers = [
-      this._about.me    && hint('about me', 'and press enter to get to know me.'),
-      this._apps.length && hint('apps', 'to explore my projects.'),
-      hint('help', 'to see all commands.'),
-      this._printBlank(),
-    ].filter(Boolean);
+    ));
   }
 
   _dismissHelper() {
@@ -479,7 +488,8 @@ export class Terminal {
     for (const [cmd, desc] of cmds) {
       this._println(`  ${cmd.padEnd(18)} ${desc}`);
     }
-    this._printBlank();
+    this._printGap();
+    this._printHints('help');
   }
 
   // ── about ───────────────────────────────────────────────────────────────
@@ -722,6 +732,8 @@ export class Terminal {
     }
     this._printBlank();
     this._println("type the app name to launch  ·  tab to autocomplete.", 'term-line--dim');
+    this._printGap();
+    this._printHints('apps');
   }
 
   _cmdFile(args) {
