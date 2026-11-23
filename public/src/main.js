@@ -172,7 +172,12 @@ const TEXT_MORPH_SECONDS = 1.5;
 
 function triggerTextMorph() {
   agent?.onTextMorph();
-  journeyTo({ positions: facingCameraIn(TEXT_MORPH_SECONDS, textShape('Ricardo Meza', PARTICLE_COUNT)) });
+  journeyTo({
+    positions: facingCameraIn(
+      TEXT_MORPH_SECONDS,
+      textShape('Ricardo Meza', PARTICLE_COUNT, viewportGridSize()),
+    ),
+  });
   textMorphActive  = true;
   textMorphT       = 0;
 }

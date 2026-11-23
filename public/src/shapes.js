@@ -387,9 +387,52 @@ const EARTH_SPIN = 0.033;
 const ATMOSPHERE_SPIN = 0.025;
 const MOON_ORBIT = 0.012;
 
-// Longitude facing the camera when the Earth forms (Africa and Europe); the
-// spin then carries the view slowly west, toward the Atlantic.
-const EARTH_FACING_LON = 0;
+// The Earth turns the visitor's part of the world to the camera. Their time
+// zone gives it away: each hour of standard time from UTC is 15° of longitude
+// (Mexico City, UTC−6 → 90° W), close enough to centre their continent.
+// Daylight saving makes the offset smaller in summer, so the larger of
+// January's and July's is the standard one, on either side of the equator.
+function visitorLongitude() {
+  const year = new Date().getFullYear();
+  const minutesBehindUtc = Math.max(
+    new Date(year, 0, 1).getTimezoneOffset(),
+    new Date(year, 6, 1).getTimezoneOffset(),
+  );
+  return -minutesBehindUtc / 4;
+}
+
+// The Earth's spin and the cloud's carry the view west: about 5° while the
+// Earth forms and 13° more over its 5.5 s hold. Starting this far east of the
+// visitor centres them halfway through the hold.
+const EARTH_LEAD = 12;
+
+// Longitude facing the camera when the Earth forms.
+const EARTH_FACING_LON = visitorLongitude() + EARTH_LEAD;
+
+// The offset can't tell north from south, but the zone's name can: these are
+// the ones south of (or right on) the equator. Names are matched as browsers
+// report them, which for a few is the older spelling (America/Buenos_Aires).
+const SOUTHERN_ZONES = new RegExp('^(' + [
+  'Australia/', 'Antarctica/', 'America/Argentina/',
+  'America/(Buenos_Aires|Cordoba|Catamarca|Jujuy|Mendoza|Sao_Paulo|Bahia|Belem|Fortaleza|Recife|Maceio|Araguaina|Cuiaba|Campo_Grande|Porto_Velho|Rio_Branco|Eirunepe|Manaus|Santarem|Noronha|Santiago|Punta_Arenas|Montevideo|Asuncion|La_Paz|Lima|Guayaquil)$',
+  'Africa/(Johannesburg|Maputo|Harare|Lusaka|Lubumbashi|Windhoek|Gaborone|Maseru|Mbabane|Blantyre|Luanda|Kinshasa|Brazzaville|Dar_es_Salaam|Nairobi|Kigali|Bujumbura)$',
+  'Indian/(Antananarivo|Mauritius|Reunion|Mayotte|Comoro|Chagos|Kerguelen|Mahe|Cocos|Christmas)$',
+  'Asia/(Jakarta|Makassar|Jayapura|Dili)$',
+  'Pacific/(Auckland|Chatham|Fiji|Tongatapu|Noumea|Efate|Apia|Port_Moresby|Guadalcanal|Norfolk|Rarotonga|Tahiti|Pago_Pago|Easter|Galapagos|Gambier|Marquesas|Niue|Fakaofo|Funafuti|Wallis|Bougainville|Pitcairn|Nauru)$',
+  'Atlantic/(St_Helena|South_Georgia|Stanley)$',
+].join('|') + ')');
+
+function visitorIsSouthern() {
+  try {
+    return SOUTHERN_ZONES.test(Intl.DateTimeFormat().resolvedOptions().timeZone ?? '');
+  } catch {
+    return false;
+  }
+}
+
+// Latitude turned to face the camera: the Earth's axis leans toward or away
+// from it so the visitor's hemisphere fills the middle of the disc.
+const EARTH_FACING_LAT = visitorIsSouthern() ? -25 : 25;
 
 // How likely a surface spot is to get a particle (keep) and how bright that
 // particle is (tone): land dense and bright, sea sparse and dim, so the
@@ -499,8 +542,8 @@ export function earthAndMoon(count, { yaw = 0, viewer = { x: 0, y: 1.5, z: 8 } }
   const moonAngle = Math.PI * 0.25;
   const moonCenter = [Math.cos(moonAngle) * moonDist, 0, Math.sin(moonAngle) * moonDist];
 
-  // Earth — continents on a sphere whose axis is vertical, so its spin turns
-  // them about the poles.
+  // Earth — continents on a sphere whose axis is vertical before turnEarth
+  // leans it, so its spin turns them about the poles.
   const earth = globe([0, 0, 0], 1.55, Math.floor(count * 0.54),
     { front: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0] }, earthSurface);
 
@@ -551,14 +594,41 @@ export function earthAndMoon(count, { yaw = 0, viewer = { x: 0, y: 1.5, z: 8 } }
     }
   }
 
+  // The Earth spins about its own axis, which leans toward the camera (or
+  // away, for the south) until EARTH_FACING_LAT faces it, then turns with
+  // `yaw` like the rest. The camera already looks down a little, by
+  // `elevation`, so the lean only makes up the difference.
+  const elevation = Math.atan2(viewer.y, Math.hypot(viewer.x, viewer.z));
+  const lean = EARTH_FACING_LAT * DEG - elevation;
+  const cosLean = Math.cos(lean);
+  const sinLean = Math.sin(lean);
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  function turnEarth(spin, out) {
+    const cos = Math.cos(spin);
+    const sin = Math.sin(spin);
+    for (let i = earth.first; i < earth.end; i++) {
+      const bx = base[i * 3 + 0];
+      const by = base[i * 3 + 1];
+      const bz = base[i * 3 + 2];
+      const x = bx * cos + bz * sin;
+      const z = -bx * sin + bz * cos;
+      const y = by * cosLean - z * sinLean;
+      const zLeaned = by * sinLean + z * cosLean;
+      out[i * 3 + 0] = x * cosYaw + zLeaned * sinYaw;
+      out[i * 3 + 1] = y;
+      out[i * 3 + 2] = -x * sinYaw + zLeaned * cosYaw;
+    }
+  }
+
   const positions = new Float32Array(base);
-  turn(earth, yaw, positions);
+  turnEarth(0, positions);
   turn(atmosphere, yaw, positions);
   turn(moon, yaw, positions);
 
   function advance(t, out, fade, eye) {
     const moonTurn = yaw + MOON_ORBIT * t;
-    turn(earth, yaw + EARTH_SPIN * t, out);
+    turnEarth(EARTH_SPIN * t, out);
     turn(atmosphere, yaw + ATMOSPHERE_SPIN * t, out);
     turn(moon, moonTurn, out);
     shade(earth, 0, 0, out, fade, eye);
@@ -608,63 +678,82 @@ export const shapeGenerators = [galaxy, blackHole, solarSystem, earthAndMoon];
 // ─── Text shape ───────────────────────────────────────────────────────────────
 // Rasterises `text` onto an off-screen canvas and samples particle positions
 // from lit pixels.  Never added to shapeGenerators — only triggered explicitly.
+// The letters are scaled to the view: `width` × `height` is what the camera
+// sees at the origin, and the text spans TEXT_WIDTH of it — or TEXT_HEIGHT of
+// its height, whichever is reached first, so it fits a phone held upright too.
 
-export function textShape(text, count) {
-  const W = 1024, H = 128;
+const TEXT_WIDTH = 0.7;
+const TEXT_HEIGHT = 0.24;
+const TEXT_SHARE = 0.85; // of the particles; the rest float around as stars
+
+export function textShape(text, count, { width = 12, height = 8.5 } = {}) {
+  const W = 2048, H = 256;
   const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H });
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 96px "VT323", monospace';
+  ctx.font = 'bold 192px "VT323", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, W / 2, H / 2);
 
-  // Collect lit pixel coordinates as flat [x0, y0, x1, y1, ...] array
+  // Collect lit pixel coordinates as flat [x0, y0, x1, y1, ...] array, and
+  // the box they fill — the text's own extent, not the canvas's.
   const { data } = ctx.getImageData(0, 0, W, H);
   const litPixels = [];
+  let minX = W, maxX = 0, minY = H, maxY = 0;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (data[(y * W + x) * 4] > 128) litPixels.push(x, y);
+      if (data[(y * W + x) * 4] > 128) {
+        litPixels.push(x, y);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
   }
 
   const positions = new Float32Array(count * 3);
+  const textWidth = width * TEXT_WIDTH;
 
   // Fallback: if the font isn't ready yet, scatter along a thin horizontal line
   if (litPixels.length === 0) {
     for (let i = 0; i < count; i++) {
-      positions[i * 3]     = (Math.random() - 0.5) * 6.4;
+      positions[i * 3]     = (Math.random() - 0.5) * textWidth;
       positions[i * 3 + 1] = (Math.random() - 0.5) * 0.1;
       positions[i * 3 + 2] = 0;
     }
     return positions;
   }
 
-  // Map pixel coords → world space.
-  // Camera: z=8, FOV 55° → horizontal extent at z=0 ≈ ±4.4 units.
-  // Use worldW=6.4 so text fills ~72% of the visible width with margin.
-  const worldW = 6.4;
-  const worldH = worldW * (H / W);   // ≈ 0.8 units tall
+  // Map pixel coords → world space, centred on the text's box. Each particle
+  // lands at a random spot inside its pixel so the letters don't show the
+  // canvas's pixel grid once scaled up.
+  const boxW = maxX - minX + 1;
+  const boxH = maxY - minY + 1;
+  const scale = Math.min(textWidth / boxW, (height * TEXT_HEIGHT) / boxH);
+  const centerX = minX + boxW / 2;
+  const centerY = minY + boxH / 2;
   const pixelCount = litPixels.length / 2;
 
-  // 62% of particles form the letters; more Z-scatter so rotation reads as 3-D
-  const textCount = Math.floor(count * 0.62);
+  // Z-scatter so the letters read as 3-D as the cloud turns
+  const textCount = Math.floor(count * TEXT_SHARE);
   for (let i = 0; i < textCount; i++) {
     const pick = Math.floor(Math.random() * pixelCount) * 2;
-    const px = litPixels[pick];
-    const py = litPixels[pick + 1];
-    positions[i * 3]     =  (px / W - 0.5) * worldW;
-    positions[i * 3 + 1] = -(py / H - 0.5) * worldH;
+    const px = litPixels[pick] + Math.random();
+    const py = litPixels[pick + 1] + Math.random();
+    positions[i * 3]     =  (px - centerX) * scale;
+    positions[i * 3 + 1] = -(py - centerY) * scale;
     positions[i * 3 + 2] =  (Math.random() - 0.5) * 0.5;
   }
 
-  // Remaining 38% fill a sphere around the text.
+  // The rest fill a sphere around the text.
   // cbrt-distributed radius gives uniform volume density; minR avoids crowding
   // the letter pixels that already occupy the core.
-  const sphereR = 4.5;
+  const sphereR = Math.max(4.5, textWidth * 0.6);
   const minR    = 0.8;
   for (let i = textCount; i < count; i++) {
     const t     = Math.random();
