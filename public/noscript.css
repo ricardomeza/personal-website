@@ -1,0 +1,31 @@
+/* Loaded only without JS (<noscript> in index.html): there's no terminal or
+   particle scene to show, so the profile takes their place as a plain page. */
+
+#scene,
+#terminal,
+#terminal__relay {
+  display: none;
+}
+
+html,
+body {
+  height: auto;
+  overflow: auto;
+}
+
+.profile {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 2rem max(1.6rem, calc((100vw - 44rem) / 2)) 5rem;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
+/* The profile links sit at the foot of the page instead of floating over it */
+.links {
+  position: static;
+  padding-bottom: 2rem;
+}

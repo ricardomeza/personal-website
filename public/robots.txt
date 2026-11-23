@@ -1,0 +1,17 @@
+# ricardomeza.com — search engines and AI assistants are welcome to crawl,
+# index and cite this site, including OAI-SearchBot, ChatGPT-User, GPTBot,
+# Claude-SearchBot, Claude-User, ClaudeBot, PerplexityBot, Perplexity-User,
+# Google-Extended, Applebot-Extended and Bingbot.
+#
+# A plain-text profile for language models lives at /llms.txt and
+# /llms-full.txt.
+#
+# Note: if Cloudflare's "managed robots.txt" is on for this zone, Cloudflare
+# prepends its own rules to this file, and its "block AI bots" setting answers
+# some crawlers with 403 before they ever read it. Both live in the Cloudflare
+# dashboard, not in this repo.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://ricardomeza.com/sitemap.xml

@@ -220,6 +220,60 @@ body {
   margin: 0;
 }
 
+/* ─── Profile — the about content as plain HTML (index.html) ─────
+   Visually hidden while the terminal runs: crawlers and screen readers
+   still read it. Shown when a keyboard user tabs into one of its links,
+   so focus is never invisible, and always without JS (noscript.css). */
+
+.profile {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.profile:focus-within {
+  inset: 0;
+  z-index: 50;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 2rem max(1.6rem, calc((100vw - 44rem) / 2)) 5rem;
+  overflow-y: auto;
+  clip-path: none;
+  white-space: normal;
+  background: #0d0d0d;
+}
+
+.profile {
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: #9a9a9a;
+}
+.profile h1,
+.profile h2 {
+  margin: 0 0 0.4em;
+  font-weight: normal;
+  color: #d6d6d6;
+}
+.profile h1 { font-size: 2.4rem; line-height: 1.1; }
+.profile h2 { margin-top: 1.6em; font-size: 1.4rem; }
+.profile p,
+.profile ul { margin: 0 0 0.8em; }
+.profile ul { padding-left: 1.4em; }
+.profile li { margin-bottom: 0.25em; }
+.profile strong { font-weight: normal; color: #d6d6d6; }
+.profile code { font-family: inherit; color: #d6d6d6; }
+.profile__lede { color: #b3b3b3; }
+.profile a { color: #d6d6d6; }
+.profile a:hover,
+.profile a:focus-visible { color: #f0f0f0; }
+
 /* ─── Mobile ──────────────────────────────────────────────────── */
 
 @media (max-width: 540px) {

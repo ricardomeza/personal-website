@@ -1,22 +1,38 @@
 # Ricardo Meza
 
-> AI Product Engineer and Product Lead based in Mexico City. I use AI to solve problems, improve user experiences and automate workflows, and have many years of experience across frontend architecture, full-stack development, and team leadership.
+> Ricardo Meza is an AI Product Engineer and Product Lead based in Mexico City, on the Labs Team at Clara — Latin America's leading corporate payments platform. He uses AI to solve problems, improve user experiences and automate workflows, and has many years of experience across frontend architecture, full-stack development and team leadership.
 
-Currently on the Labs Team at Clara — Latin America's leading corporate payments platform — where I design and ship full-stack AI tools from 0 to 1. I work across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
+At Clara he designs and ships full-stack AI tools from 0 to 1, working across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
 
-Before specializing in AI product development I served as Frontend Architect at Conekta, senior engineer at Rappi and MetaMap, and spent 4 years with Mozilla Foundation and Mozilla México — as Main Manager for Mozilla México I led localization of Firefox into Mexican Spanish and indigenous languages.
+Before specializing in AI product development he was Frontend Architect at Conekta and Senior Engineer at Rappi and MetaMap, and spent 4 years with Mozilla Foundation and Mozilla México — as Main Manager for Mozilla México he led the localization of Firefox into Mexican Spanish and indigenous languages.
 
-## Social
+## Work
 
-- GitHub: https://github.com/ricardomeza
-- X (Twitter): https://x.com/ricardo_meza
-- LinkedIn: https://www.linkedin.com/in/ricardomeza/
+- Clara — Labs Team (current): full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform
+- Conekta — Frontend Architect
+- Rappi — Senior Engineer
+- MetaMap — Senior Engineer
+- Mozilla Foundation and Mozilla México — Main Manager for Mozilla México, 4 years: localized Firefox into Mexican Spanish and indigenous languages
+
+Full experience: https://www.linkedin.com/in/ricardomeza/
 
 ## Apps
 
-- [lightguard](https://ricardomeza.com/lightguard): monitors room lighting to protect your sleep
-- [ScribuGo](https://scribugo.com): AI creative assistant — express yourself through a story
+- [LightGuard](https://ricardomeza.com/lightguard): monitors room lighting to protect your sleep
+- [ScribuGo](https://scribugo.com/): AI creative assistant — express yourself through a story
+
+## Contact and profiles
+
+- [LinkedIn](https://www.linkedin.com/in/ricardomeza/): linkedin.com/in/ricardomeza
+- [GitHub](https://github.com/ricardomeza): github.com/ricardomeza
+- [X (Twitter)](https://x.com/ricardo_meza): @ricardo_meza
+
+No email address or phone number is published on this site; these profiles are the way to reach him.
 
 ## This site
 
-ricardomeza.com is an interactive portfolio with a 3D particle system and a Unix-style terminal emulator. Type `about me` or `help` in the terminal to explore.
+ricardomeza.com is an interactive portfolio with a 3D particle system and a Unix-style terminal emulator. Type `about me`, `apps` or `help` in the terminal to explore.
+
+## Optional
+
+- [llms-full.txt](https://ricardomeza.com/llms-full.txt): the same profile in more detail, with how this site is built

@@ -1,0 +1,68 @@
+# Ricardo Meza
+
+> Ricardo Meza is an AI Product Engineer and Product Lead based in Mexico City, on the Labs Team at Clara — Latin America's leading corporate payments platform. He uses AI to solve problems, improve user experiences and automate workflows, and has many years of experience across frontend architecture, full-stack development and team leadership.
+
+This is the full plain-text profile behind https://ricardomeza.com/. A shorter version is at https://ricardomeza.com/llms.txt. Everything here is also on the site itself, in the terminal's `about` and `apps` commands.
+
+## Key facts
+
+- Name: Ricardo Meza
+- Role: AI Product Engineer and Product Lead
+- Based in: Mexico City, Mexico
+- Now: Labs Team at Clara, designing and shipping full-stack AI tools from 0 to 1
+- Stack: React/Next.js on the frontend; Python/Node.js + OpenShift microservices on the backend
+- Experience: many years across frontend architecture, full-stack development and team leadership
+- Previously: Conekta (Frontend Architect), Rappi (Senior Engineer), MetaMap (Senior Engineer), Mozilla Foundation and Mozilla México (Main Manager for Mozilla México, 4 years)
+- Website: https://ricardomeza.com/
+- LinkedIn: https://www.linkedin.com/in/ricardomeza/
+- GitHub: https://github.com/ricardomeza
+- X (Twitter): https://x.com/ricardo_meza (@ricardo_meza)
+
+## About
+
+Ricardo is an AI Product Engineer and Product Lead. He uses AI to solve problems, improve user experiences and automate workflows.
+
+He is currently on the Labs Team at Clara — Latin America's leading corporate payments platform — where he designs and ships full-stack AI tools from 0 to 1. He works across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
+
+Before specializing in AI product development he was Frontend Architect at Conekta and Senior Engineer at Rappi and MetaMap, and spent 4 years with Mozilla Foundation and Mozilla México — as Main Manager for Mozilla México he led the localization of Firefox into Mexican Spanish and indigenous languages.
+
+## Work history
+
+- Clara — Labs Team (current). Full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform.
+- Conekta — Frontend Architect.
+- Rappi — Senior Engineer.
+- MetaMap — Senior Engineer.
+- Mozilla Foundation and Mozilla México — Main Manager for Mozilla México, 4 years. Led the localization of Firefox into Mexican Spanish and indigenous languages.
+
+Dates and the full history are on LinkedIn: https://www.linkedin.com/in/ricardomeza/
+
+## Apps
+
+### LightGuard
+
+https://ricardomeza.com/lightguard
+
+Monitors room lighting to protect your sleep. A web app that uses the device camera to estimate the colour temperature of the ambient light, knows when it's evening, and warns when cool artificial light may affect your circadian rhythm and sleep, with tips to improve your environment. Camera frames stay on the device. Available in English and Spanish.
+
+### ScribuGo
+
+https://scribugo.com/
+
+AI creative assistant — express yourself through a story. ScribuGo writes a story made for you from your answers: something you want to read, or what you feel but don't know how to say. The site is in Spanish.
+
+## Contact
+
+- LinkedIn: https://www.linkedin.com/in/ricardomeza/
+- GitHub: https://github.com/ricardomeza
+- X (Twitter): https://x.com/ricardo_meza
+
+No email address or phone number is published on this site; these profiles are the way to reach him.
+
+## This site
+
+ricardomeza.com is an interactive portfolio:
+
+- Particles: 20,000 points morphing between a galaxy, a black hole, the solar system and the Earth and Moon — Three.js and custom shaders. Entering "Ricardo Meza" in the terminal makes the particles spell the name.
+- Terminal: a Unix-style terminal emulator in vanilla JS, no framework. Try `about me`, `about work`, `about contact`, `apps` and `help`.
+- AI panel: Llama 3.2 1B running locally in the visitor's browser via WebLLM (desktop only).
+- Hosting: static assets on Cloudflare Workers.

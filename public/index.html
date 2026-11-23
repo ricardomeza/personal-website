@@ -3,14 +3,143 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ricardo Meza</title>
+    <title>Ricardo Meza — AI Product Engineer and Product Lead</title>
+    <meta
+      name="description"
+      content="Ricardo Meza is an AI Product Engineer and Product Lead in Mexico City, on the Labs Team at Clara. Previously Conekta, Rappi, MetaMap and Mozilla México."
+    />
+    <meta name="author" content="Ricardo Meza" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <link rel="canonical" href="https://ricardomeza.com/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Open Graph / social cards -->
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content="Ricardo Meza" />
+    <meta property="og:title" content="Ricardo Meza — AI Product Engineer and Product Lead" />
+    <meta
+      property="og:description"
+      content="AI Product Engineer and Product Lead in Mexico City, designing and shipping full-stack AI tools from 0 to 1 on the Labs Team at Clara."
+    />
+    <meta property="og:url" content="https://ricardomeza.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://ricardomeza.com/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ricardomeza.com: a terminal beside 20,000 particles spelling Ricardo Meza" />
+    <meta property="profile:first_name" content="Ricardo" />
+    <meta property="profile:last_name" content="Meza" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@ricardo_meza" />
+    <meta name="twitter:creator" content="@ricardo_meza" />
+
+    <!-- Structured data (a data block, not script: CSP doesn't apply to it).
+         Keep in step with the about content in src/main.js and llms.txt. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "ProfilePage",
+            "@id": "https://ricardomeza.com/#profilepage",
+            "url": "https://ricardomeza.com/",
+            "name": "Ricardo Meza — AI Product Engineer and Product Lead",
+            "inLanguage": "en",
+            "dateModified": "2026-11-23",
+            "isPartOf": { "@id": "https://ricardomeza.com/#website" },
+            "mainEntity": { "@id": "https://ricardomeza.com/#person" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://ricardomeza.com/#website",
+            "url": "https://ricardomeza.com/",
+            "name": "Ricardo Meza",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://ricardomeza.com/#person" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://ricardomeza.com/#person",
+            "name": "Ricardo Meza",
+            "givenName": "Ricardo",
+            "familyName": "Meza",
+            "url": "https://ricardomeza.com/",
+            "jobTitle": "AI Product Engineer and Product Lead",
+            "description": "AI Product Engineer and Product Lead based in Mexico City. Uses AI to solve problems, improve user experiences and automate workflows, with many years of experience across frontend architecture, full-stack development and team leadership.",
+            "worksFor": {
+              "@type": "Organization",
+              "name": "Clara",
+              "url": "https://www.clara.com/",
+              "description": "Latin America's leading corporate payments platform"
+            },
+            "alumniOf": [
+              { "@type": "Organization", "name": "Conekta", "url": "https://www.conekta.com/" },
+              { "@type": "Organization", "name": "Rappi", "url": "https://www.rappi.com/" },
+              { "@type": "Organization", "name": "MetaMap", "url": "https://www.metamap.com/" },
+              { "@type": "Organization", "name": "Mozilla Foundation", "url": "https://www.mozillafoundation.org/" },
+              { "@type": "Organization", "name": "Mozilla México" }
+            ],
+            "homeLocation": {
+              "@type": "Place",
+              "name": "Mexico City",
+              "address": { "@type": "PostalAddress", "addressLocality": "Mexico City", "addressCountry": "MX" }
+            },
+            "knowsAbout": [
+              "Artificial intelligence",
+              "AI product development",
+              "Workflow automation",
+              "Frontend architecture",
+              "Full-stack development",
+              "Team leadership",
+              "React",
+              "Next.js",
+              "Python",
+              "Node.js",
+              "OpenShift",
+              "Software localization"
+            ],
+            "sameAs": [
+              "https://github.com/ricardomeza",
+              "https://x.com/ricardo_meza",
+              "https://www.linkedin.com/in/ricardomeza/"
+            ]
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://ricardomeza.com/lightguard#app",
+            "name": "LightGuard",
+            "url": "https://ricardomeza.com/lightguard",
+            "description": "Monitors room lighting to protect your sleep.",
+            "applicationCategory": "HealthApplication",
+            "operatingSystem": "Web browser",
+            "creator": { "@id": "https://ricardomeza.com/#person" }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://scribugo.com/#app",
+            "name": "ScribuGo",
+            "url": "https://scribugo.com/",
+            "description": "AI creative assistant — express yourself through a story.",
+            "applicationCategory": "EntertainmentApplication",
+            "operatingSystem": "Web browser",
+            "inLanguage": "es",
+            "creator": { "@id": "https://ricardomeza.com/#person" }
+          }
+        ]
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=4" />
+    <!-- Without JS there's no terminal: show the profile below instead. -->
+    <noscript><link rel="stylesheet" href="noscript.css" /></noscript>
     <script type="importmap">
       {
         "imports": {
@@ -44,12 +173,73 @@
       tabindex="-1"
     />
 
+    <!-- The terminal's about content as plain HTML, for crawlers, screen
+         readers and visitors without JS. Visually hidden while the terminal
+         runs (styles.css), shown in its place without JS (noscript.css).
+         Keep it in step with the about topics in src/main.js and llms.txt. -->
+    <main id="profile" class="profile">
+      <h1>Ricardo Meza</h1>
+      <p class="profile__lede">AI Product Engineer and Product Lead, based in Mexico City.</p>
+      <p>
+        I use AI to solve problems, improve user experiences and automate
+        workflows. I'm on the Labs Team at Clara — Latin America's leading
+        corporate payments platform — where I design and ship full-stack AI
+        tools from 0 to 1, across React/Next.js on the frontend and
+        Python/Node.js + OpenShift microservices on the backend. I have many
+        years of experience across frontend architecture, full-stack
+        development and team leadership.
+      </p>
+
+      <section aria-labelledby="profile-work">
+        <h2 id="profile-work">Work</h2>
+        <ul>
+          <li><strong>Clara</strong> — Labs Team, now: full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform</li>
+          <li><strong>Conekta</strong> — Frontend Architect</li>
+          <li><strong>Rappi</strong> — Senior Engineer</li>
+          <li><strong>MetaMap</strong> — Senior Engineer</li>
+          <li><strong>Mozilla Foundation and Mozilla México</strong> — Main Manager for Mozilla México, 4 years: led the localization of Firefox into Mexican Spanish and indigenous languages</li>
+        </ul>
+        <p>See my full experience on <a href="https://www.linkedin.com/in/ricardomeza/">LinkedIn</a>.</p>
+      </section>
+
+      <section aria-labelledby="profile-apps">
+        <h2 id="profile-apps">Apps</h2>
+        <ul>
+          <li><a href="https://ricardomeza.com/lightguard">LightGuard</a> — monitors room lighting to protect your sleep</li>
+          <li><a href="https://scribugo.com/">ScribuGo</a> — AI creative assistant: express yourself through a story</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="profile-contact">
+        <h2 id="profile-contact">Contact</h2>
+        <p>Find me on:</p>
+        <ul>
+          <li>GitHub — <a href="https://github.com/ricardomeza" rel="me">github.com/ricardomeza</a></li>
+          <li>X — <a href="https://x.com/ricardo_meza" rel="me">x.com/ricardo_meza</a></li>
+          <li>LinkedIn — <a href="https://www.linkedin.com/in/ricardomeza/" rel="me">linkedin.com/in/ricardomeza</a></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="profile-site">
+        <h2 id="profile-site">This site</h2>
+        <p>
+          An interactive portfolio: 20,000 particles morphing between a galaxy,
+          a black hole, the solar system and the Earth and Moon (Three.js and
+          custom shaders), a Unix-style terminal in vanilla JS — type
+          <code>about me</code>, <code>apps</code> or <code>help</code> — and a
+          Llama 3.2 1B assistant running locally in the browser via WebLLM
+          (desktop only). Static assets on Cloudflare Workers.
+        </p>
+        <p>For AI assistants: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a></p>
+      </section>
+    </main>
+
     <nav class="links" aria-label="Profiles">
-      <a class="links__item" href="https://github.com/ricardomeza" target="_blank" rel="noopener noreferrer">github<span class="links__path">.com/ricardomeza</span></a>
+      <a class="links__item" href="https://github.com/ricardomeza" target="_blank" rel="me noopener noreferrer">github<span class="links__path">.com/ricardomeza</span></a>
       <span class="links__sep" aria-hidden="true">▪</span>
-      <a class="links__item" href="https://x.com/ricardo_meza" target="_blank" rel="noopener noreferrer">x<span class="links__path">.com/ricardo_meza</span></a>
+      <a class="links__item" href="https://x.com/ricardo_meza" target="_blank" rel="me noopener noreferrer">x<span class="links__path">.com/ricardo_meza</span></a>
       <span class="links__sep" aria-hidden="true">▪</span>
-      <a class="links__item" href="https://www.linkedin.com/in/ricardomeza/" target="_blank" rel="noopener noreferrer">linkedin<span class="links__path">.com/in/ricardomeza</span></a>
+      <a class="links__item" href="https://www.linkedin.com/in/ricardomeza/" target="_blank" rel="me noopener noreferrer">linkedin<span class="links__path">.com/in/ricardomeza</span></a>
     </nav>
 
     <script type="module" src="./src/main.js"></script>
