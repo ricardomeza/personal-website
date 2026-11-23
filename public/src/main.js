@@ -59,8 +59,8 @@ const PAR_EASE = 0.04;
 const parallaxInput = createParallaxInput();
 const par = { x: 0, y: 0 };
 
-// Dragging (or holding and sliding a finger) orbits the camera around the
-// origin from where it rests — see orbit-drag.js. Parallax rides on top.
+// Dragging (mouse, trackpad or finger) orbits the camera around the origin
+// from where it rests — see orbit-drag.js. Parallax rides on top.
 const orbit = createOrbitDrag({ baseElevation: cameraTilt });
 
 function viewportGridSize() {
@@ -298,7 +298,7 @@ const terminal = new Terminal({
     },
   },
   onNameSubmit: triggerTextMorph,  // Enter on "Ricardo Meza" → particles spell the name
-  // Tilt and hold-and-slide diagnostics via `env`, for checking on a phone.
+  // Tilt and touch-drag diagnostics via `env`, for checking on a phone.
   extraEnv: () => [`MOTION_SENSOR=${parallaxInput.status}`, `TOUCH_DRAG=${orbit.status}`],
 });
 terminal.onCommand = (cmd, args) => agent?.onTerminalCommand(cmd, args);
