@@ -1,8 +1,8 @@
 # Ricardo Meza
 
-> Fullstack/AI Engineer and creator based in Mexico City. I build production-ready LLM-powered products and have 15+ years of experience across frontend architecture, full-stack development, and team leadership.
+> AI Product Engineer and Product Lead based in Mexico City. I use AI to solve problems, improve user experiences and automate workflows, and have 15+ years of experience across frontend architecture, full-stack development, and team leadership.
 
-Currently on the Innovation Team at Clara — Latin America's leading corporate payments platform — where I design and ship full-stack AI tools from 0 to 1. I work across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
+Currently on the Labs Team at Clara — Latin America's leading corporate payments platform — where I design and ship full-stack AI tools from 0 to 1. I work across React/Next.js on the frontend and Python/Node.js + OpenShift microservices on the backend.
 
 Before specializing in AI product development I served as Frontend Architect at Conekta, senior engineer at Rappi and MetaMap, and spent 4 years as the Main Manager for Mozilla México, where I led localization of Firefox into Mexican Spanish and indigenous languages.
 

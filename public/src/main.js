@@ -222,17 +222,17 @@ const terminal = new Terminal({
   about: {
     me: {
       desc: 'who I am',
-      summary: 'Fullstack/AI engineer and creator. I build production-ready LLM-powered products.',
+      summary: 'AI Product Engineer and Product Lead. I use AI to solve problems, improve user experiences and automate workflows.',
       facts: [
         { label: 'based in',   text: 'Mexico City' },
-        { label: 'now',        text: 'Innovation Team @ Clara — designing and shipping full-stack AI tools from 0 to 1' },
-        { label: 'experience', text: '15+ years across frontend architecture, full-stack development and team leadership' },
+        { label: 'now',        text: 'Labs Team @ Clara — designing and shipping full-stack AI tools from 0 to 1' },
+        { label: 'experience', text: 'many years across frontend architecture, full-stack development and team leadership — Clara · Conekta · Rappi · MetaMap · Mozilla Foundation and Mozilla México' },
       ],
     },
     work: {
       desc: "where I've worked",
       facts: [
-        { label: 'clara',   text: "Innovation Team, now — full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform" },
+        { label: 'clara',   text: "Labs Team, now — full-stack AI tools from 0 to 1 at Latin America's leading corporate payments platform" },
         { label: 'conekta', text: 'Frontend Architect' },
         { label: 'rappi',   text: 'senior engineer' },
         { label: 'metamap', text: 'senior engineer' },
