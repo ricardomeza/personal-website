@@ -8,15 +8,26 @@ import { createParticles } from "./particles.js";
 import { createParallaxInput } from "./parallax-input.js";
 import { shapeGenerators, grid, textShape } from "./shapes.js";
 import {
+  GRID_KNOT,
   PHASE,
+  PHASE_DURATIONS,
   createStateMachine,
-  morphProgress,
+  journeyProgress,
 } from "./state.js";
 import { Terminal } from "./terminal.js";
 import { AgentPanel } from "./agent.js";
 
 const PARTICLE_COUNT = 20000;
 const BG = 0x0d0d0d;
+
+// Speed at which particles cross the grid, relative to their average speed
+// on the way in and out: low enough that the grid reads, never zero.
+const GRID_THROUGH = 0.45;
+
+// Shapes spin while held; the spin eases in after arriving and back out
+// before dissolving so it hands off smoothly to the journey's rest points.
+const SPIN_SPEED = 0.06;
+const SPIN_RAMP = 0.75;
 
 const canvas = document.getElementById("scene");
 const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -62,15 +73,13 @@ const particles = createParticles({
 });
 scene.add(particles.points);
 
-let currentTarget = initialPositions;
-
-function applyTarget(positions) {
-  particles.setTarget(positions);
-  currentTarget = positions;
+function travelViaGrid(to, via) {
+  particles.travel(to, { via, knot: GRID_KNOT, through: GRID_THROUGH });
 }
 
-// First morph target is black hole (index 1)
-applyTarget(shapeGenerators[1](PARTICLE_COUNT));
+// The page opens mid-journey, already on the grid and flowing into the
+// black hole (index 1) — the state machine starts at MORPH_TO_NEXT.
+travelViaGrid(shapeGenerators[1](PARTICLE_COUNT), initialPositions);
 
 const isMobile    = window.matchMedia('(max-width: 540px)').matches || navigator.maxTouchPoints > 1;
 const isCellular  = navigator.connection?.type === 'cellular';
@@ -83,63 +92,66 @@ const machine = createStateMachine({
   shapeCount: shapeGenerators.length,
   onPhaseEnter(state) {
     agent?.onSceneEvent(state);
+    // One journey covers dissolve → grid → next shape, so it's planned in
+    // full here; the following phases only advance its progress.
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
       particles.bakeYRotation(particles.points.rotation.y);
       particles.points.rotation.y = 0;
-      applyTarget(grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }));
-    } else if (state.phase === PHASE.MORPH_TO_NEXT) {
-      applyTarget(shapeGenerators[state.shapeIndex](PARTICLE_COUNT));
-    } else {
-      applyTarget(currentTarget);
+      travelViaGrid(
+        shapeGenerators[state.shapeIndex](PARTICLE_COUNT),
+        grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }),
+      );
     }
   },
 });
 
 const clock = new Clock();
+let time = 0;
+
+function spinRate(elapsed) {
+  const hold = PHASE_DURATIONS[PHASE.SHAPE_HOLD];
+  const ramp = Math.min(1, elapsed / SPIN_RAMP, (hold - elapsed) / SPIN_RAMP);
+  const eased = Math.max(0, ramp);
+  return SPIN_SPEED * eased * eased * (3 - 2 * eased);
+}
 
 // ─── Text-morph state ─────────────────────────────────────────────────────────
 // textShape is NEVER added to shapeGenerators — it only appears when the user
 // explicitly types "Ricardo Meza" in the terminal.
 let textMorphActive  = false;
 let textMorphT       = 0;    // 0 → 1 over ~1.5 s
-let textMorphPending = null; // holds the positions array until bake is done
 
 function triggerTextMorph() {
   agent?.onTextMorph();
-  const positions = textShape('Ricardo Meza', PARTICLE_COUNT);
   particles.bakeYRotation(particles.points.rotation.y);
   particles.points.rotation.y = 0;
-  particles.setTarget(positions);
-  textMorphPending = positions;
+  particles.travel(textShape('Ricardo Meza', PARTICLE_COUNT));
   textMorphActive  = true;
   textMorphT       = 0;
 }
 
 function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
+  time += dt;
+  particles.setTime(time);
 
   if (textMorphActive) {
     textMorphT = Math.min(textMorphT + dt / 1.5, 1.0);
-    particles.setMorph(textMorphT);
+    particles.setProgress(textMorphT);
 
     if (textMorphT >= 1.0) {
-      // Morph-in complete — bake text positions into the position buffer so
-      // the GPU shader reads them at uMorph=0 (SHAPE_HOLD returns 0).
-      // setTarget swaps: position ← old aTarget (= textMorphPending), aTarget ← textMorphPending
-      particles.setTarget(textMorphPending);
-      currentTarget    = textMorphPending;
-      textMorphPending = null;
-      textMorphActive  = false;
-      // Hand control back to the state machine at SHAPE_HOLD so the normal
-      // hold (7 s) → dissolve to grid → next shape cycle runs from here.
+      // Morph-in complete: the particles now rest on the text. Hand control
+      // back to the state machine at SHAPE_HOLD so the normal hold (7 s) →
+      // dissolve to grid → next shape cycle runs from here.
+      textMorphActive = false;
       machine.forceShapeHold();
     }
   } else {
     const state = machine.tick(dt);
     if (state.phase === PHASE.SHAPE_HOLD) {
-      particles.points.rotation.y += dt * 0.06;
+      particles.points.rotation.y += dt * spinRate(state.elapsed);
     }
-    particles.setMorph(morphProgress(state));
+    particles.setProgress(journeyProgress(state));
   }
 
   // Smooth parallax — lerp camera toward input-driven offset, keep looking at origin

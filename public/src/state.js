@@ -7,9 +7,9 @@ export const PHASE = {
 
 export const PHASE_DURATIONS = {
   [PHASE.SHAPE_HOLD]: 7.0,
-  [PHASE.DISSOLVE_TO_GRID]: 3.0,
+  [PHASE.DISSOLVE_TO_GRID]: 1.5,
   [PHASE.GRID_HOLD]: 0,
-  [PHASE.MORPH_TO_NEXT]: 2.0,
+  [PHASE.MORPH_TO_NEXT]: 1.0,
 };
 
 const PHASE_ORDER = [
@@ -18,20 +18,6 @@ const PHASE_ORDER = [
   PHASE.GRID_HOLD,
   PHASE.MORPH_TO_NEXT,
 ];
-
-export function easeInOutCubic(t) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-export function easeOutQuart(t) {
-  return 1 - Math.pow(1 - t, 4);
-}
-
-export function easeFor(phase) {
-  if (phase === PHASE.DISSOLVE_TO_GRID) return easeInOutCubic;
-  if (phase === PHASE.MORPH_TO_NEXT) return easeOutQuart;
-  return (t) => t;
-}
 
 export function createStateMachine({ onPhaseEnter, initialPhase = PHASE.SHAPE_HOLD, initialShapeIndex = 0, shapeCount = 3 }) {
   const state = {
@@ -73,14 +59,25 @@ export function createStateMachine({ onPhaseEnter, initialPhase = PHASE.SHAPE_HO
   return { state, tick, forceShapeHold };
 }
 
-export function morphProgress(state) {
-  if (
-    state.phase !== PHASE.DISSOLVE_TO_GRID &&
-    state.phase !== PHASE.MORPH_TO_NEXT
-  ) {
-    return 0;
+// Dissolve → grid hold → morph is one continuous journey (shape → grid →
+// next shape); this maps the current phase onto its linear 0..1 progress.
+// Easing happens per particle in the shader. Outside the journey the
+// particles rest at its end.
+const DISSOLVE_SECONDS = PHASE_DURATIONS[PHASE.DISSOLVE_TO_GRID];
+const JOURNEY_SECONDS = DISSOLVE_SECONDS + PHASE_DURATIONS[PHASE.MORPH_TO_NEXT];
+
+// Progress at which the journey passes through the grid.
+export const GRID_KNOT = DISSOLVE_SECONDS / JOURNEY_SECONDS;
+
+export function journeyProgress(state) {
+  switch (state.phase) {
+    case PHASE.DISSOLVE_TO_GRID:
+      return state.elapsed / JOURNEY_SECONDS;
+    case PHASE.GRID_HOLD:
+      return GRID_KNOT;
+    case PHASE.MORPH_TO_NEXT:
+      return Math.min(1, (DISSOLVE_SECONDS + state.elapsed) / JOURNEY_SECONDS);
+    default:
+      return 1;
   }
-  const duration = PHASE_DURATIONS[state.phase];
-  const raw = Math.min(1, state.elapsed / duration);
-  return easeFor(state.phase)(raw);
 }
