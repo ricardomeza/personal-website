@@ -155,22 +155,6 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
     material.uniforms.uProgress.value = 0;
   }
 
-  function bakeYRotation(angle) {
-    if (angle === 0) return;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    for (const attr of [startAttr, viaAttr, targetAttr]) {
-      const arr = attr.array;
-      for (let ix = 0; ix < arr.length; ix += 3) {
-        const x = arr[ix];
-        const z = arr[ix + 2];
-        arr[ix] = x * cos + z * sin;
-        arr[ix + 2] = -x * sin + z * cos;
-      }
-      attr.needsUpdate = true;
-    }
-  }
-
   function setProgress(value) {
     material.uniforms.uProgress.value = value;
   }
@@ -191,6 +175,5 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
     setProgress,
     setTime,
     setPixelRatio,
-    bakeYRotation,
   };
 }

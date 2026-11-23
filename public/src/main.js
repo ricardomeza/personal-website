@@ -24,10 +24,9 @@ const BG = 0x0d0d0d;
 // on the way in and out: low enough that the grid reads, never zero.
 const GRID_THROUGH = 0.45;
 
-// Shapes spin while held; the spin eases in after arriving and back out
-// before dissolving so it hands off smoothly to the journey's rest points.
+// The cloud spins without pause — through holds and transitions alike — so
+// particles leave a shape and settle into the next one already moving.
 const SPIN_SPEED = 0.06;
-const SPIN_RAMP = 0.75;
 
 const canvas = document.getElementById("scene");
 const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -77,6 +76,24 @@ function travelViaGrid(to, via) {
   particles.travel(to, { via, knot: GRID_KNOT, through: GRID_THROUGH });
 }
 
+// Journeys run in the spinning cloud's local space. Screen-aligned layouts
+// (the grid, the name) are counter-rotated by the angle the cloud will have
+// reached `seconds` from now, so they face the camera at that moment.
+function facingCameraIn(seconds, positions) {
+  const angle = -(particles.points.rotation.y + SPIN_SPEED * seconds);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i];
+    const z = positions[i + 2];
+    out[i] = x * cos + z * sin;
+    out[i + 1] = positions[i + 1];
+    out[i + 2] = -x * sin + z * cos;
+  }
+  return out;
+}
+
 // The page opens mid-journey, already on the grid and flowing into the
 // black hole (index 1) — the state machine starts at MORPH_TO_NEXT.
 travelViaGrid(shapeGenerators[1](PARTICLE_COUNT), initialPositions);
@@ -95,11 +112,12 @@ const machine = createStateMachine({
     // One journey covers dissolve → grid → next shape, so it's planned in
     // full here; the following phases only advance its progress.
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
-      particles.bakeYRotation(particles.points.rotation.y);
-      particles.points.rotation.y = 0;
       travelViaGrid(
         shapeGenerators[state.shapeIndex](PARTICLE_COUNT),
-        grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }),
+        facingCameraIn(
+          PHASE_DURATIONS[PHASE.DISSOLVE_TO_GRID],
+          grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }),
+        ),
       );
     }
   },
@@ -108,24 +126,16 @@ const machine = createStateMachine({
 const clock = new Clock();
 let time = 0;
 
-function spinRate(elapsed) {
-  const hold = PHASE_DURATIONS[PHASE.SHAPE_HOLD];
-  const ramp = Math.min(1, elapsed / SPIN_RAMP, (hold - elapsed) / SPIN_RAMP);
-  const eased = Math.max(0, ramp);
-  return SPIN_SPEED * eased * eased * (3 - 2 * eased);
-}
-
 // ─── Text-morph state ─────────────────────────────────────────────────────────
 // textShape is NEVER added to shapeGenerators — it only appears when the user
 // explicitly types "Ricardo Meza" in the terminal.
 let textMorphActive  = false;
-let textMorphT       = 0;    // 0 → 1 over ~1.5 s
+let textMorphT       = 0;    // 0 → 1 over TEXT_MORPH_SECONDS
+const TEXT_MORPH_SECONDS = 1.5;
 
 function triggerTextMorph() {
   agent?.onTextMorph();
-  particles.bakeYRotation(particles.points.rotation.y);
-  particles.points.rotation.y = 0;
-  particles.travel(textShape('Ricardo Meza', PARTICLE_COUNT));
+  particles.travel(facingCameraIn(TEXT_MORPH_SECONDS, textShape('Ricardo Meza', PARTICLE_COUNT)));
   textMorphActive  = true;
   textMorphT       = 0;
 }
@@ -134,23 +144,21 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   time += dt;
   particles.setTime(time);
+  particles.points.rotation.y = (particles.points.rotation.y + dt * SPIN_SPEED) % (Math.PI * 2);
 
   if (textMorphActive) {
-    textMorphT = Math.min(textMorphT + dt / 1.5, 1.0);
+    textMorphT = Math.min(textMorphT + dt / TEXT_MORPH_SECONDS, 1.0);
     particles.setProgress(textMorphT);
 
     if (textMorphT >= 1.0) {
       // Morph-in complete: the particles now rest on the text. Hand control
-      // back to the state machine at SHAPE_HOLD so the normal hold (7 s) →
+      // back to the state machine at SHAPE_HOLD so the normal hold (3.5 s) →
       // dissolve to grid → next shape cycle runs from here.
       textMorphActive = false;
       machine.forceShapeHold();
     }
   } else {
     const state = machine.tick(dt);
-    if (state.phase === PHASE.SHAPE_HOLD) {
-      particles.points.rotation.y += dt * spinRate(state.elapsed);
-    }
     particles.setProgress(journeyProgress(state));
   }
 
