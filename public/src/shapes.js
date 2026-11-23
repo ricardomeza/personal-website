@@ -96,7 +96,7 @@ export function galaxy(count) {
 }
 
 // Black hole: the tidal stream flows from the disrupted star into the core
-// (fraction of the stream per second), the inner ring orbits faster the
+// (in lengths of its outer arc per second), the inner ring orbits faster the
 // tighter it is, and jet particles are expelled up and down (units/s).
 const STREAM_SPEED = 0.0075;
 const RING_SPIN = 0.025;
@@ -108,7 +108,7 @@ export function blackHole(count) {
   let idx = 0;
 
   // Extremely dense compact core — appears white via additive blending saturation
-  const coreCount = Math.floor(count * 0.32);
+  const coreCount = Math.floor(count * 0.22);
   for (let i = 0; i < coreCount; i++, idx++) {
     const r = Math.pow(Math.random(), 3.5) * 0.24;
     const theta = Math.random() * Math.PI * 2;
@@ -118,13 +118,27 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
-  // Tidal stream — logarithmic spiral arcing from lower-left around the core.
-  // t=0 is the far narrow tip, t=1 wraps tight around the core.
-  const streamCount = Math.floor(count * 0.38);
+  // Tidal stream — logarithmic spiral arcing from lower-left around the core
+  // and on into it, the way matter torn from a star feeds a black hole: it
+  // wraps once around the hole, then keeps winding in, thinner and flatter,
+  // until it falls into the core. t=0 is the far narrow tip, t=1 wraps tight
+  // around the core (r ≈ 0.42), and at t=tEnd the stream reaches plungeR.
+  const streamCount = Math.floor(count * 0.48);
   const outerR = 4.2;
   const kSpiral = 2.3;
   const startAngle = Math.PI * 1.15;  // ~207° — lower-left in XZ plane
-  const sweepAngle = -Math.PI * 1.6;  // 288° clockwise sweep
+  const sweepAngle = -Math.PI * 1.6;  // 288° clockwise sweep per unit of t
+  const innerR = outerR * Math.exp(-kSpiral);
+  const plungeR = 0.03;
+  const tEnd = Math.log(outerR / plungeR) / kSpiral;
+
+  // Particles flow at a steady rate in q, which is t along the outer arc.
+  // Inside it q is stretched so they speed up as they fall, by just enough to
+  // keep as many particles per unit of length all the way into the core.
+  const qEnd = 1 + (1 - Math.exp(-kSpiral * (tEnd - 1))) / kSpiral;
+  function alongStream(q) {
+    return q <= 1 ? q : 1 - Math.log(1 - kSpiral * (q - 1)) / kSpiral;
+  }
 
   // Star being disrupted — small dense cluster at the outer tip of the stream
   const starX = Math.cos(startAngle) * outerR;
@@ -150,25 +164,29 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = starZ + r * Math.sin(phi) * Math.sin(theta);
   }
 
-  // Each stream particle keeps its place along the stream and its offsets
-  // across it (as a fraction of the local width) and above it.
+  // Each stream particle keeps its place along the stream (q) and its
+  // offsets across it (as a fraction of the local width) and above it.
   const streamFirst = idx;
-  const streamT = new Float32Array(streamCount);
+  const streamQ = new Float32Array(streamCount);
   const streamSide = new Float32Array(streamCount);
   const streamLift = new Float32Array(streamCount);
   function placeOnStream(i, t, side, lift, out) {
     const r = outerR * Math.exp(-kSpiral * t);
     const angle = startAngle + sweepAngle * t;
-    const width = 0.03 + t * 0.2;
+    // Widens and thickens toward the hole; inside t=1 it narrows faster than
+    // r shrinks, so the last turns read as a thread winding in, not a haze.
+    const inside = Math.min(1, r / innerR);
+    const arc = Math.min(1, t);
+    const width = (0.03 + arc * 0.2) * inside * inside;
     out[i * 3 + 0] = Math.cos(angle) * r - Math.sin(angle) * side * width;
-    out[i * 3 + 1] = lift * (0.3 + t);
+    out[i * 3 + 1] = lift * (0.3 + arc) * inside;
     out[i * 3 + 2] = Math.sin(angle) * r + Math.cos(angle) * side * width;
   }
   for (let j = 0; j < streamCount; j++, idx++) {
-    streamT[j] = Math.random();
+    streamQ[j] = Math.random() * qEnd;
     streamSide[j] = (Math.random() - 0.5) * 2;
     streamLift[j] = gaussian() * 0.025;
-    placeOnStream(idx, streamT[j], streamSide[j], streamLift[j], positions);
+    placeOnStream(idx, alongStream(streamQ[j]), streamSide[j], streamLift[j], positions);
   }
 
   // Circularized inner ring — matter that has completed its first orbit
@@ -214,15 +232,15 @@ export function blackHole(count) {
     positions[idx * 3 + 2] = (Math.random() - 0.5) * 0.1;
   }
 
-  // Stream particles fade in as they peel off the star and out as they reach
-  // the ring; jet particles start inside the bright core and fade out at the
-  // jets' tips before looping back.
+  // Stream particles fade in as they peel off the star and out as they sink
+  // into the bright core; jet particles start inside the core and fade out at
+  // the jets' tips before looping back.
   function advance(t, out, fade) {
     for (let j = 0; j < streamCount; j++) {
-      const s = wrap(streamT[j] + STREAM_SPEED * t, 1);
+      const s = alongStream(wrap(streamQ[j] + STREAM_SPEED * t, qEnd));
       const i = streamFirst + j;
       placeOnStream(i, s, streamSide[j], streamLift[j], out);
-      fade[i] = smoothstep(0, 0.05, s) * smoothstep(1, 0.93, s);
+      fade[i] = smoothstep(0, 0.05, s) * smoothstep(tEnd, tEnd - 0.25, s);
     }
     for (let j = 0; j < ringCount; j++) {
       const angle = ringAngle[j] - (RING_SPIN * t) / Math.pow(ringR[j], 1.5);
