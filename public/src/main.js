@@ -26,7 +26,7 @@ const GRID_THROUGH = 0.45;
 
 // The cloud spins without pause — through holds and transitions alike — so
 // particles leave a shape and settle into the next one already moving.
-const SPIN_SPEED = 0.06;
+const SPIN_SPEED = 0.01;
 
 const canvas = document.getElementById("scene");
 const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false });
