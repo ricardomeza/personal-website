@@ -64,7 +64,7 @@ export function createStateMachine({ onPhaseEnter, initialPhase = PHASE.SHAPE_HO
 // Easing happens per particle in the shader. Outside the journey the
 // particles rest at its end.
 const DISSOLVE_SECONDS = PHASE_DURATIONS[PHASE.DISSOLVE_TO_GRID];
-const JOURNEY_SECONDS = DISSOLVE_SECONDS + PHASE_DURATIONS[PHASE.MORPH_TO_NEXT];
+export const JOURNEY_SECONDS = DISSOLVE_SECONDS + PHASE_DURATIONS[PHASE.MORPH_TO_NEXT];
 
 // Progress at which the journey passes through the grid.
 export const GRID_KNOT = DISSOLVE_SECONDS / JOURNEY_SECONDS;

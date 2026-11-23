@@ -1,16 +1,27 @@
-// A shape is { positions, advance? }. `positions` is where each particle
-// sits when the shape forms. `advance(t, out, fade)`, when present, makes the
-// shape move while it's on screen: it writes where its moving particles are
-// `t` seconds after it formed into `out` (xyz per particle) and how visible
-// each one is into `fade` (0..1). Particles that loop — back to a galaxy's
-// rim, say — sit at fade 0 where they wrap so they never pop in or out.
-// Particles advance() doesn't write keep their `positions` place.
+// A shape is { positions, fade?, advance? }. `positions` is where each
+// particle sits when the shape forms; `fade`, if given, is each particle's
+// brightness there (1 when omitted). `advance(t, out, fade, eye)`, when present,
+// makes the shape move while it's on screen: it writes where its moving
+// particles are `t` seconds after it formed into `out` (xyz per particle) and
+// how visible each one is into `fade` (0..1). Particles that loop — back to a
+// galaxy's rim, say — sit at fade 0 where they wrap so they never pop in or
+// out. Particles advance() doesn't write keep their `positions` place. `eye`
+// is the camera's position in the same frame, for shapes that shade their
+// surface by which way it faces.
+//
+// Generators take (count, { yaw, viewer }): shapes with a front of their own
+// turn by `yaw` so it faces the camera when they form, with the camera at
+// `viewer`; the rest ignore both.
+
+import { isLand } from "./earth-land.js";
 
 function gaussian() {
   const u = 1 - Math.random();
   const v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+const DEG = Math.PI / 180;
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
@@ -230,12 +241,35 @@ export function blackHole(count) {
   return { positions, advance };
 }
 
-export function solarSystem(count) {
+// Solar system: the Sun, the eight planets on their orbits, the asteroid
+// belt and faint orbit paths. Distances are squeezed so all fit, and sizes
+// kept close together so the giants don't dominate.
+// Planets and asteroids orbit counter-clockwise seen from above, at
+// Kepler-like speeds: ω = ORBIT_SPEED / r^1.5, so inner planets lap faster.
+const ORBIT_SPEED = 0.08;
+const PLANETS = [
+  // orbit radius, body radius, share of particles, angle at forming
+  // (degrees; 0° is to the right of the Sun, 270° toward the camera)
+  { orbit: 0.62, radius: 0.045, share: 0.008, angle: 320 }, // Mercury
+  { orbit: 0.88, radius: 0.075, share: 0.014, angle: 170 }, // Venus
+  { orbit: 1.18, radius: 0.08, share: 0.015, angle: 100 },  // Earth
+  { orbit: 1.5, radius: 0.06, share: 0.011, angle: 35 },    // Mars
+  { orbit: 2.35, radius: 0.15, share: 0.035, angle: 320, bands: true }, // Jupiter
+  { orbit: 3.05, radius: 0.13, share: 0.025, angle: 215, rings: { inner: 0.175, outer: 0.29, gap: [0.237, 0.25], share: 0.022, tilt: 15 } }, // Saturn
+  { orbit: 3.75, radius: 0.1, share: 0.016, angle: 150 }, // Uranus
+  { orbit: 4.4, radius: 0.1, share: 0.016, angle: 55 },   // Neptune
+];
+const BELT = { inner: 1.75, outer: 2.05, share: 0.06 };
+const PLANET_TONE = 1.3;
+const ORBIT_PATH_TONE = 0.28;
+
+export function solarSystem(count, { yaw = 0 } = {}) {
   const positions = new Float32Array(count * 3);
+  const fade = new Float32Array(count).fill(1);
   let idx = 0;
 
   // Dense sun at center — bright stellar core
-  const sunCount = Math.floor(count * 0.13);
+  const sunCount = Math.floor(count * 0.18);
   for (let i = 0; i < sunCount; i++, idx++) {
     const r = Math.pow(Math.random(), 2.0) * 0.38;
     const theta = Math.random() * Math.PI * 2;
@@ -245,36 +279,106 @@ export function solarSystem(count) {
     positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
-  // Planetary orbital rings
-  const orbits = [0.5, 0.95, 1.5, 2.1, 2.9, 3.7, 4.5];
-  const weights = [0.6, 0.9, 1.0, 1.0, 1.2, 1.3, 1.4];
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  const starShare = 0.04;
-  for (; idx < count; idx++) {
-    if (Math.random() < starShare) {
-      const r = 5.5 + Math.random() * 2.5;
+  // Planets — each particle keeps its offset from its planet's centre
+  // (turned by `yaw`, so Saturn's rings open toward the camera on forming).
+  const offset = new Float32Array(count * 3);
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  function placeOffset(i, x, y, z) {
+    offset[i * 3 + 0] = x * cosYaw + z * sinYaw;
+    offset[i * 3 + 1] = y;
+    offset[i * 3 + 2] = -x * sinYaw + z * cosYaw;
+  }
+  const bodies = PLANETS.map((planet) => {
+    const first = idx;
+    const n = Math.floor(count * planet.share);
+    for (let i = 0; i < n; i++, idx++) {
+      const rr = planet.radius * (1 + gaussian() * 0.06);
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-      positions[idx * 3 + 1] = r * Math.cos(phi);
-      positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-      continue;
+      placeOffset(idx, rr * Math.sin(phi) * Math.cos(theta), rr * Math.cos(phi), rr * Math.sin(phi) * Math.sin(theta));
+      // Banded planets alternate bright and dim belts by latitude.
+      const dark = planet.bands && Math.sin((Math.PI / 2 - phi) * 7) < 0;
+      fade[idx] = dark ? PLANET_TONE * 0.55 : PLANET_TONE;
     }
-    let pick = Math.random() * totalWeight;
-    let bucket = 0;
-    for (let b = 0; b < weights.length; b++) {
-      pick -= weights[b];
-      if (pick <= 0) { bucket = b; break; }
+    const rings = planet.rings;
+    if (rings) {
+      const tilt = rings.tilt * DEG;
+      const ringEnd = idx + Math.floor(count * rings.share);
+      while (idx < ringEnd) {
+        // uniform over the ring's area, skipping the Cassini division
+        const r = Math.sqrt(rings.inner ** 2 + Math.random() * (rings.outer ** 2 - rings.inner ** 2));
+        if (r > rings.gap[0] && r < rings.gap[1]) continue;
+        const theta = Math.random() * Math.PI * 2;
+        const x = r * Math.cos(theta);
+        const z = r * Math.sin(theta);
+        placeOffset(idx, x, -z * Math.sin(tilt) + gaussian() * 0.003, z * Math.cos(tilt));
+        fade[idx] = PLANET_TONE * 0.8;
+        idx++;
+      }
     }
-    const r = orbits[bucket] + gaussian() * 0.06;
-    const theta = Math.random() * Math.PI * 2;
-    const tilt = (Math.random() - 0.5) * 0.08;
-    positions[idx * 3 + 0] = Math.cos(theta) * r;
-    positions[idx * 3 + 1] = Math.sin(theta) * tilt + gaussian() * 0.02;
-    positions[idx * 3 + 2] = Math.sin(theta) * r;
+    return { ...planet, first, end: idx, spin: ORBIT_SPEED / Math.pow(planet.orbit, 1.5) };
+  });
+
+  // Asteroid belt between Mars and Jupiter
+  const beltFirst = idx;
+  const beltCount = Math.floor(count * BELT.share);
+  const beltR = new Float32Array(beltCount);
+  const beltAngle = new Float32Array(beltCount);
+  const beltY = new Float32Array(beltCount);
+  for (let j = 0; j < beltCount; j++, idx++) {
+    beltR[j] = BELT.inner + Math.random() * (BELT.outer - BELT.inner);
+    beltAngle[j] = Math.random() * Math.PI * 2;
+    beltY[j] = gaussian() * 0.03;
+    fade[idx] = 0.7;
   }
 
-  return { positions };
+  // Background stars
+  const starEnd = idx + Math.floor(count * 0.15);
+  for (; idx < starEnd; idx++) {
+    const r = 5.5 + Math.random() * 2.5;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi);
+    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+
+  // Faint orbit paths with the rest, spread evenly along their length
+  const totalOrbit = PLANETS.reduce((sum, planet) => sum + planet.orbit, 0);
+  for (; idx < count; idx++) {
+    let pick = Math.random() * totalOrbit;
+    const orbit = PLANETS.find((planet) => (pick -= planet.orbit) <= 0)?.orbit ?? PLANETS[0].orbit;
+    const r = orbit + gaussian() * 0.012;
+    const theta = Math.random() * Math.PI * 2;
+    positions[idx * 3 + 0] = Math.cos(theta) * r;
+    positions[idx * 3 + 1] = gaussian() * 0.006;
+    positions[idx * 3 + 2] = Math.sin(theta) * r;
+    fade[idx] = ORBIT_PATH_TONE;
+  }
+
+  function advance(t, out) {
+    for (const body of bodies) {
+      const angle = body.angle * DEG + yaw + body.spin * t;
+      const cx = body.orbit * Math.cos(angle);
+      const cz = -body.orbit * Math.sin(angle);
+      for (let i = body.first; i < body.end; i++) {
+        out[i * 3 + 0] = cx + offset[i * 3 + 0];
+        out[i * 3 + 1] = offset[i * 3 + 1];
+        out[i * 3 + 2] = cz + offset[i * 3 + 2];
+      }
+    }
+    for (let j = 0; j < beltCount; j++) {
+      const angle = beltAngle[j] + (ORBIT_SPEED / Math.pow(beltR[j], 1.5)) * t;
+      const i = beltFirst + j;
+      out[i * 3 + 0] = beltR[j] * Math.cos(angle);
+      out[i * 3 + 1] = beltY[j];
+      out[i * 3 + 2] = -beltR[j] * Math.sin(angle);
+    }
+  }
+
+  advance(0, positions);
+  return { positions, fade, advance };
 }
 
 // Earth spins on its axis (atmosphere a touch slower) and the moon orbits
@@ -283,8 +387,76 @@ const EARTH_SPIN = 0.033;
 const ATMOSPHERE_SPIN = 0.025;
 const MOON_ORBIT = 0.012;
 
-export function earthAndMoon(count) {
-  const positions = new Float32Array(count * 3);
+// Longitude facing the camera when the Earth forms (Africa and Europe); the
+// spin then carries the view slowly west, toward the Atlantic.
+const EARTH_FACING_LON = 0;
+
+// How likely a surface spot is to get a particle (keep) and how bright that
+// particle is (tone): land dense and bright, sea sparse and dim, so the
+// continents read as shapes; the moon's maria are its dark "seas" and young
+// craters glow.
+const LAND = { keep: 1, tone: 1.4 };
+const SEA = { keep: 0.08, tone: 0.45 };
+const HIGHLAND = { keep: 1, tone: 1.3 };
+const MARE = { keep: 0.12, tone: 0.35 };
+const CRATER = { keep: 1, tone: 2 };
+
+// The cloud is see-through, so each sphere's far side is dimmed to this
+// fraction to keep it from muddling the outlines on the near side. Toward
+// the rim a sphere's surface crowds together on screen; scaling brightness by
+// how squarely a spot faces the camera evens that out, so the disc reads
+// evenly lit and its features — not a bright ring — stand out.
+const FAR_SIDE = 0.1;
+
+// The Moon's near side as [latitude, longitude, radius] in degrees
+// (selenographic, east positive): the maria that make its face, and the
+// bright craters Tycho, Copernicus and Aristarchus.
+const MOON_MARIA = [
+  [28, -50, 12], [12, -58, 14], [-3, -50, 11], [20, -68, 9], // Oceanus Procellarum
+  [8, -28, 8],   // Mare Insularum
+  [33, -16, 16], // Mare Imbrium
+  [56, -30, 5], [58, -10, 5], [58, 10, 5], [56, 28, 5], // Mare Frigoris
+  [28, 17, 10],  // Mare Serenitatis
+  [8, 30, 12],   // Mare Tranquillitatis
+  [17, 59, 8],   // Mare Crisium
+  [-8, 52, 10],  // Mare Fecunditatis
+  [-15, 35, 5],  // Mare Nectaris
+  [13, 4, 4],    // Mare Vaporum
+  [2, 2, 3],     // Sinus Medii
+  [-21, -17, 10], // Mare Nubium
+  [-10, -23, 5], // Mare Cognitum
+  [-24, -39, 6], // Mare Humorum
+];
+const MOON_CRATERS = [
+  [-43, -11, 4],  // Tycho
+  [10, -20, 3],   // Copernicus
+  [24, -47, 2.5], // Aristarchus
+];
+
+function within(features, lat, lon) {
+  for (const [fLat, fLon, radius] of features) {
+    const cosDistance =
+      Math.sin(lat * DEG) * Math.sin(fLat * DEG) +
+      Math.cos(lat * DEG) * Math.cos(fLat * DEG) * Math.cos((lon - fLon) * DEG);
+    if (cosDistance >= Math.cos(radius * DEG)) return true;
+  }
+  return false;
+}
+
+function earthSurface(lat, lon) {
+  return isLand(lat, lon + EARTH_FACING_LON) ? LAND : SEA;
+}
+
+function moonSurface(lat, lon) {
+  if (within(MOON_CRATERS, lat, lon)) return CRATER;
+  return within(MOON_MARIA, lat, lon) ? MARE : HIGHLAND;
+}
+
+// `yaw` turns the scene so its front (+z) faces the camera when it forms and
+// `viewer` is where the camera is then; main.js passes both.
+export function earthAndMoon(count, { yaw = 0, viewer = { x: 0, y: 1.5, z: 8 } } = {}) {
+  const base = new Float32Array(count * 3);
+  const tone = new Float32Array(count).fill(1);
   let idx = 0;
 
   function sphere(cx, cy, cz, r, n, spread = 0.03) {
@@ -293,35 +465,62 @@ export function earthAndMoon(count) {
       const rr    = r + gaussian() * spread;
       const theta = Math.random() * Math.PI * 2;
       const phi   = Math.acos(2 * Math.random() - 1);
-      positions[idx * 3 + 0] = cx + rr * Math.sin(phi) * Math.cos(theta);
-      positions[idx * 3 + 1] = cy + rr * Math.cos(phi);
-      positions[idx * 3 + 2] = cz + rr * Math.sin(phi) * Math.sin(theta);
+      base[idx * 3 + 0] = cx + rr * Math.sin(phi) * Math.cos(theta);
+      base[idx * 3 + 1] = cy + rr * Math.cos(phi);
+      base[idx * 3 + 2] = cz + rr * Math.sin(phi) * Math.sin(theta);
     }
     return { first, end: idx };
   }
 
+  // A sphere whose surface has features: spots are drawn uniformly and kept
+  // with their surface's odds. `front`, `right` and `up` orient its map —
+  // latitude 0, longitude 0 faces `front`, east is toward `right`.
+  function globe(center, r, n, { front, right, up }, surfaceAt) {
+    const first = idx;
+    while (idx < first + n) {
+      const lat = Math.asin(2 * Math.random() - 1);
+      const lon = (Math.random() * 2 - 1) * Math.PI;
+      const surface = surfaceAt(lat / DEG, lon / DEG);
+      if (Math.random() >= surface.keep) continue;
+      const rr = r + gaussian() * 0.02;
+      const f = Math.cos(lat) * Math.cos(lon);
+      const e = Math.cos(lat) * Math.sin(lon);
+      const u = Math.sin(lat);
+      for (let k = 0; k < 3; k++) {
+        base[idx * 3 + k] = center[k] + rr * (f * front[k] + e * right[k] + u * up[k]);
+      }
+      tone[idx] = surface.tone;
+      idx++;
+    }
+    return { first, end: idx, center };
+  }
+
   const moonDist  = 3.6;
   const moonAngle = Math.PI * 0.25;
-  const moonX = Math.cos(moonAngle) * moonDist;
-  const moonZ = Math.sin(moonAngle) * moonDist;
+  const moonCenter = [Math.cos(moonAngle) * moonDist, 0, Math.sin(moonAngle) * moonDist];
 
-  // Earth — dense spherical surface
-  const earth = sphere(0, 0, 0, 1.55, Math.floor(count * 0.46));
+  // Earth — continents on a sphere whose axis is vertical, so its spin turns
+  // them about the poles.
+  const earth = globe([0, 0, 0], 1.55, Math.floor(count * 0.54),
+    { front: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0] }, earthSurface);
 
   // Atmosphere — sparse haze shell outside Earth
-  const atmosphere = sphere(0, 0, 0, 1.72, Math.floor(count * 0.08), 0.14);
+  const atmosphere = sphere(0, 0, 0, 1.72, Math.floor(count * 0.05), 0.14);
 
-  // Moon — smaller sphere at orbital position
-  const moon = sphere(moonX, 0, moonZ, 0.42, Math.floor(count * 0.20));
+  // Moon — its near side turned toward the camera.
+  const toViewer = normalize([viewer.x - moonCenter[0], viewer.y - moonCenter[1], viewer.z - moonCenter[2]]);
+  const moonUp = normalize([-toViewer[1] * toViewer[0], 1 - toViewer[1] * toViewer[1], -toViewer[1] * toViewer[2]]);
+  const moon = globe(moonCenter, 0.42, Math.floor(count * 0.23),
+    { front: toViewer, right: cross(moonUp, toViewer), up: moonUp }, moonSurface);
 
   // Background stars
   for (; idx < count; idx++) {
     const r     = 6.5 + Math.random() * 4.0;
     const theta = Math.random() * Math.PI * 2;
     const phi   = Math.acos(2 * Math.random() - 1);
-    positions[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-    positions[idx * 3 + 1] = r * Math.cos(phi);
-    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    base[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+    base[idx * 3 + 1] = r * Math.cos(phi);
+    base[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   }
 
   // Each group turns rigidly about the Earth's vertical axis — for the moon
@@ -330,21 +529,55 @@ export function earthAndMoon(count) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     for (let i = first; i < end; i++) {
-      const x = positions[i * 3 + 0];
-      const z = positions[i * 3 + 2];
+      const x = base[i * 3 + 0];
+      const z = base[i * 3 + 2];
       out[i * 3 + 0] = x * cos + z * sin;
-      out[i * 3 + 1] = positions[i * 3 + 1];
+      out[i * 3 + 1] = base[i * 3 + 1];
       out[i * 3 + 2] = -x * sin + z * cos;
     }
   }
 
-  function advance(t, out) {
-    turn(earth, EARTH_SPIN * t, out);
-    turn(atmosphere, ATMOSPHERE_SPIN * t, out);
-    turn(moon, MOON_ORBIT * t, out);
+  // Brightness = surface tone × how squarely the spot faces the camera.
+  function shade({ first, end }, cx, cz, out, fade, eye) {
+    for (let i = first; i < end; i++) {
+      const px = out[i * 3 + 0];
+      const py = out[i * 3 + 1];
+      const pz = out[i * 3 + 2];
+      const nx = px - cx, ny = py, nz = pz - cz;
+      const vx = eye.x - px, vy = eye.y - py, vz = eye.z - pz;
+      const facing = (nx * vx + ny * vy + nz * vz) /
+        Math.sqrt((nx * nx + ny * ny + nz * nz) * (vx * vx + vy * vy + vz * vz));
+      fade[i] = tone[i] * Math.max(FAR_SIDE, Math.pow(Math.max(facing, 0), 0.8));
+    }
+  }
+
+  const positions = new Float32Array(base);
+  turn(earth, yaw, positions);
+  turn(atmosphere, yaw, positions);
+  turn(moon, yaw, positions);
+
+  function advance(t, out, fade, eye) {
+    const moonTurn = yaw + MOON_ORBIT * t;
+    turn(earth, yaw + EARTH_SPIN * t, out);
+    turn(atmosphere, yaw + ATMOSPHERE_SPIN * t, out);
+    turn(moon, moonTurn, out);
+    shade(earth, 0, 0, out, fade, eye);
+    shade(moon,
+      moonCenter[0] * Math.cos(moonTurn) + moonCenter[2] * Math.sin(moonTurn),
+      -moonCenter[0] * Math.sin(moonTurn) + moonCenter[2] * Math.cos(moonTurn),
+      out, fade, eye);
   }
 
   return { positions, advance };
+}
+
+function normalize([x, y, z]) {
+  const length = Math.hypot(x, y, z);
+  return [x / length, y / length, z / length];
+}
+
+function cross([ax, ay, az], [bx, by, bz]) {
+  return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
 }
 
 export function grid(count, { tilt = 0, width = 9, height = 9 } = {}) {

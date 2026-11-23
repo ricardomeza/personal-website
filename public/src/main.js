@@ -9,6 +9,7 @@ import { createParallaxInput } from "./parallax-input.js";
 import { shapeGenerators, grid, textShape } from "./shapes.js";
 import {
   GRID_KNOT,
+  JOURNEY_SECONDS,
   PHASE,
   PHASE_DURATIONS,
   createStateMachine,
@@ -84,7 +85,7 @@ let departing = null;
 function journeyTo(shape, options) {
   departing = arriving;
   arriving = { shape, born: time };
-  particles.travel(shape.positions, options);
+  particles.travel(shape.positions, { ...options, fade: shape.fade });
 }
 
 function journeyViaGrid(shape, via) {
@@ -94,8 +95,12 @@ function journeyViaGrid(shape, via) {
 // Journeys run in the spinning cloud's local space. Screen-aligned layouts
 // (the grid, the name) are counter-rotated by the angle the cloud will have
 // reached `seconds` from now, so they face the camera at that moment.
+function yawFacingCameraIn(seconds) {
+  return -(particles.points.rotation.y + SPIN_SPEED * seconds);
+}
+
 function facingCameraIn(seconds, positions) {
-  const angle = -(particles.points.rotation.y + SPIN_SPEED * seconds);
+  const angle = yawFacingCameraIn(seconds);
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const out = new Float32Array(positions.length);
@@ -109,9 +114,29 @@ function facingCameraIn(seconds, positions) {
   return out;
 }
 
+// Shapes with a front (the Earth's continents, the Moon's face) are built
+// turned so it faces the camera when they finish forming `seconds` from now.
+function makeShape(index, seconds) {
+  return shapeGenerators[index](PARTICLE_COUNT, {
+    yaw: yawFacingCameraIn(seconds),
+    viewer: camera.position,
+  });
+}
+
+// The camera's position in the spinning cloud's frame, refreshed every frame
+// for shapes that shade their surface by which way it faces.
+const eye = { x: 0, y: 0, z: 0 };
+function updateEye() {
+  const angle = particles.points.rotation.y;
+  const { x, y, z } = camera.position;
+  eye.x = x * Math.cos(angle) - z * Math.sin(angle);
+  eye.y = y;
+  eye.z = x * Math.sin(angle) + z * Math.cos(angle);
+}
+
 // The page opens mid-journey, already on the grid and flowing into the
 // black hole (index 1) — the state machine starts at MORPH_TO_NEXT.
-journeyViaGrid(shapeGenerators[1](PARTICLE_COUNT), initialPositions);
+journeyViaGrid(makeShape(1, PHASE_DURATIONS[PHASE.MORPH_TO_NEXT]), initialPositions);
 
 const isMobile    = window.matchMedia('(max-width: 540px)').matches || navigator.maxTouchPoints > 1;
 const isCellular  = navigator.connection?.type === 'cellular';
@@ -128,7 +153,7 @@ const machine = createStateMachine({
     // full here; the following phases only advance its progress.
     if (state.phase === PHASE.DISSOLVE_TO_GRID) {
       journeyViaGrid(
-        shapeGenerators[state.shapeIndex](PARTICLE_COUNT),
+        makeShape(state.shapeIndex, JOURNEY_SECONDS),
         facingCameraIn(
           PHASE_DURATIONS[PHASE.DISSOLVE_TO_GRID],
           grid(PARTICLE_COUNT, { tilt: cameraTilt, ...viewportGridSize() }),
@@ -175,12 +200,13 @@ function animate() {
   }
   particles.setProgress(progress);
 
+  updateEye();
   if (arriving.shape.advance) {
-    particles.advanceTarget(arriving.shape.advance, time - arriving.born);
+    particles.advanceTarget(arriving.shape.advance, time - arriving.born, eye);
   }
   if (departing && progress >= 1) departing = null;
   if (departing?.shape.advance) {
-    particles.advanceStart(departing.shape.advance, time - departing.born);
+    particles.advanceStart(departing.shape.advance, time - departing.born, eye);
   }
 
   // Smooth parallax — lerp camera toward input-driven offset, keep looking at origin

@@ -157,13 +157,15 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
 
   // Begin a new journey from where the last one ended (aTarget) to `to`,
   // crossing `via` at progress `knot` at `through` × the legs' average speed.
+  // `fade` is the new shape's own brightness per particle, if it has one.
   // Without `via` it's a direct morph: with via at the midpoint, knot 0.5 and
   // through 1.5 the Hermite legs reduce exactly to a smoothstep from → to.
-  function travel(to, { via = null, knot = 0.5, through = 1.5 } = {}) {
+  function travel(to, { via = null, knot = 0.5, through = 1.5, fade = null } = {}) {
     const from = startAttr.array;
     from.set(targetAttr.array);
     startFadeAttr.array.set(targetFadeAttr.array);
-    targetFadeAttr.array.fill(1);
+    if (fade) targetFadeAttr.array.set(fade);
+    else targetFadeAttr.array.fill(1);
     if (via) {
       viaAttr.array.set(via);
     } else {
@@ -181,16 +183,16 @@ export function createParticles({ count, initialPositions, pixelRatio }) {
     material.uniforms.uProgress.value = 0;
   }
 
-  // Let a moving shape rewrite the journey's start or end for time t
-  // (shape.advance from shapes.js).
-  function advanceStart(advance, t) {
-    advance(t, startAttr.array, startFadeAttr.array);
+  // Let a moving shape rewrite the journey's start or end for time t, with
+  // the camera at `eye` in the cloud's frame (shape.advance from shapes.js).
+  function advanceStart(advance, t, eye) {
+    advance(t, startAttr.array, startFadeAttr.array, eye);
     startAttr.needsUpdate = true;
     startFadeAttr.needsUpdate = true;
   }
 
-  function advanceTarget(advance, t) {
-    advance(t, targetAttr.array, targetFadeAttr.array);
+  function advanceTarget(advance, t, eye) {
+    advance(t, targetAttr.array, targetFadeAttr.array, eye);
     targetAttr.needsUpdate = true;
     targetFadeAttr.needsUpdate = true;
   }
