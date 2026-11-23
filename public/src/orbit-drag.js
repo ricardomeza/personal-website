@@ -10,22 +10,18 @@
 //
 //   • Mouse / trackpad: press and drag. A press on the terminal's text still
 //     selects it; links and inputs keep working.
-//   • Touch: slide a finger and the scene turns straight away; a tap still
-//     opens the keyboard. The one exception is the terminal's text while
-//     there's more of it than fits on screen: a swipe there scrolls it, and
-//     holding still for a moment first turns the scene instead — the camera
-//     leans in a little when the hold takes, so the visitor knows.
+//   • Touch: press and hold, then slide. A quick swipe still scrolls the
+//     terminal and a tap still opens the keyboard: holding first is what
+//     tells them apart. Once the hold takes, the camera leans in a little so
+//     the visitor knows the scene is in hand.
 //
 // The output is a turn away from the camera's resting place — `azimuth` and
 // `elevation` in radians, `zoom` as a distance factor — eased every update().
 
-// Touch, in px from where the finger landed: how far it may wander and still
-// be a tap, or — on text that scrolls — still be holding rather than swiping.
-// Both stay under the distance at which browsers start scrolling, so the
-// page never scrolls before the finger has been read.
-const TAP_SLOP  = 6;
+const HOLD_MS   = 280; // touch: how long to hold still before the scene is grabbed
+// px from where the finger landed that a waiting finger may wander before it
+// counts as a swipe — under the distance at which browsers start scrolling.
 const HOLD_SLOP = 8;
-const HOLD_MS   = 280; // how long to hold still on text that scrolls
 
 // px of drag per DRAG_TURN radians of turn (before the limits ease it in): a
 // share of the screen's shorter side, so a phone needs no more than its width.
@@ -145,8 +141,8 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
 
   window.addEventListener('blur', end);
 
-  // ─── Touch ────────────────────────────────────────────────────────────────
-  let touch = null; // { id, x0, y0, x, y, start, waits, timer, taken, moves, blocked }
+  // ─── Touch: hold, then slide ──────────────────────────────────────────────
+  let hold = null; // { id, x0, y0, x, y, start, timer, taken, moves, blocked }
 
   // How the last touch went, for the terminal's `env` on the device itself.
   let touchLog = 'no touch yet';
@@ -154,27 +150,19 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
   // By index: TouchList isn't iterable in every browser.
   function find(touches) {
     for (let i = 0; i < touches.length; i++) {
-      if (touches[i].identifier === touch.id) return touches[i];
+      if (touches[i].identifier === hold.id) return touches[i];
     }
     return null;
   }
 
-  // On the terminal's text while it holds more than fits: a swipe there has
-  // to scroll it, so the finger holds still first to turn the scene.
-  function scrollsHere(target, x, y) {
-    const term = target.closest('#terminal');
-    return !!term && term.scrollHeight > term.clientHeight + 1 && overText(target, x, y);
-  }
-
   function letGo(why) {
-    if (!touch) return;
-    const ms = Math.round(performance.now() - touch.start);
-    const counts = `${touch.moves} moves (${touch.blocked} kept from scrolling)`;
-    touchLog = touch.taken ? `${touch.waits ? 'held' : 'dragged'}, ${counts}, ${why} at ${ms}ms`
-             : touch.waits ? `let go before the hold: ${why} at ${ms}ms`
-             : `tap: ${why} at ${ms}ms`;
-    clearTimeout(touch.timer);
-    touch = null;
+    if (!hold) return;
+    const ms = Math.round(performance.now() - hold.start);
+    touchLog = hold.taken
+      ? `held, ${hold.moves} moves (${hold.blocked} kept from scrolling), ${why} at ${ms}ms`
+      : `let go before the hold: ${why} at ${ms}ms`;
+    clearTimeout(hold.timer);
+    hold = null;
     end();
   }
 
@@ -185,64 +173,57 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
     letGo('touchend never came');
     const t = e.changedTouches[0];
     if (!t) return;
-    const el = e.target instanceof Element ? e.target : null;
-    if (el?.closest(INTERACTIVE)) {
+    if (e.target instanceof Element && e.target.closest(INTERACTIVE)) {
       touchLog = 'started on a link or input';
       return;
     }
-    touch = {
+    hold = {
       id: t.identifier, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY,
-      start: performance.now(), waits: !!el && scrollsHere(el, t.clientX, t.clientY),
-      taken: false, moves: 0, blocked: 0,
+      start: performance.now(), taken: false, moves: 0, blocked: 0,
     };
-    if (touch.waits) {
-      touch.timer = setTimeout(() => {
-        touch.taken = true;
-        begin('touch', touch.x, touch.y); // from wherever the finger is now
-        target.zoom = GRAB_ZOOM;
-      }, HOLD_MS);
-    }
+    hold.timer = setTimeout(() => {
+      hold.taken = true;
+      begin('touch', hold.x, hold.y); // from wherever the finger is now
+      target.zoom = GRAB_ZOOM;
+    }, HOLD_MS);
   }, { passive: true });
 
-  // Not passive: once the finger turns the scene, it mustn't also scroll.
+  // Not passive: once the hold takes, the finger turns the scene instead of
+  // scrolling the terminal.
   window.addEventListener('touchmove', (e) => {
-    if (!touch) return;
+    if (!hold) return;
     const t = find(e.changedTouches);
     if (!t) return;
-    touch.moves++;
-    touch.x = t.clientX;
-    touch.y = t.clientY;
-    if (!touch.taken) {
-      const wandered = Math.hypot(t.clientX - touch.x0, t.clientY - touch.y0);
-      if (touch.waits) {
-        if (wandered > HOLD_SLOP) letGo('moved'); // a swipe on the text: it scrolls
-        return;
+    hold.moves++;
+    hold.x = t.clientX;
+    hold.y = t.clientY;
+    if (!hold.taken) {
+      // Measured from where it landed, so a slow swipe can't creep past it.
+      if (Math.hypot(t.clientX - hold.x0, t.clientY - hold.y0) > HOLD_SLOP) {
+        letGo('moved'); // before the hold took: a swipe, so it scrolls
       }
-      if (wandered <= TAP_SLOP) return; // could still be a tap
-      touch.taken = true;
-      begin('touch', touch.x0, touch.y0); // the turn counts from touch-down
+      return;
     }
     if (e.cancelable) {
       e.preventDefault();
-      touch.blocked++;
+      hold.blocked++;
     }
     move(t.clientX, t.clientY);
   }, { passive: false });
 
   const release = (e) => {
     lastTouch = performance.now();
-    if (!touch || !find(e.changedTouches)) return;
-    // After turning the scene, lifting the finger isn't a tap: no click, so
-    // no keyboard popping up.
-    if (touch.taken && e.cancelable) e.preventDefault();
+    if (!hold || !find(e.changedTouches)) return;
+    // After a hold, lifting the finger isn't a tap: no click, so no keyboard.
+    if (hold.taken && e.cancelable) e.preventDefault();
     letGo(e.type);
   };
   window.addEventListener('touchend', release, { passive: false });
   window.addEventListener('touchcancel', release);
 
-  // A long press would open the browser's menu.
+  // A long press would open the browser's menu or start selecting text.
   window.addEventListener('contextmenu', (e) => {
-    if (touch) e.preventDefault();
+    if (hold?.taken) e.preventDefault();
   });
 
   // ─── Output ───────────────────────────────────────────────────────────────
@@ -258,9 +239,8 @@ export function createOrbitDrag({ baseElevation = 0 } = {}) {
     get elevation() { return view.el; },
     get zoom()      { return view.zoom; },
     get status() {
-      if (!touch) return touchLog;
-      if (!touch.taken) return touch.waits ? 'waiting for the hold' : 'touching';
-      return `${touch.waits ? 'holding' : 'dragging'}, ${touch.moves} moves (${touch.blocked} kept from scrolling)`;
+      if (!hold) return touchLog;
+      return hold.taken ? `holding, ${hold.moves} moves (${hold.blocked} kept from scrolling)` : 'waiting for the hold';
     },
   };
 }
