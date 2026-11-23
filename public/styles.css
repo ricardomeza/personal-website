@@ -50,12 +50,20 @@ html.is-orbiting * {
 
 /* ─── Terminal panel ──────────────────────────────────────────── */
 
+/* The profile links (.links) float at the foot of the screen; the terminal
+   ends this far up so its output never runs under them. It's sized by the
+   viewport's edges rather than 100vh, which on phones reaches under the
+   browser's toolbar. */
+:root {
+  --links-space: calc(max(1rem, env(safe-area-inset-bottom)) + 2rem);
+}
+
 #terminal {
   position: fixed;
   top: 0;
   left: 0;
+  bottom: var(--links-space);
   width: 50vw;
-  height: 100vh;
   z-index: 20;
   overflow-y: auto;
   overflow-x: hidden;
