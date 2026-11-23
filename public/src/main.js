@@ -6,6 +6,7 @@ import {
 } from "three";
 import { createParticles } from "./particles.js";
 import { createParallaxInput } from "./parallax-input.js";
+import { createOrbitDrag } from "./orbit-drag.js";
 import { shapeGenerators, grid, textShape } from "./shapes.js";
 import {
   GRID_KNOT,
@@ -46,16 +47,21 @@ const camera = new PerspectiveCamera(
 camera.position.set(0, 1.5, 8);
 camera.lookAt(0, 0, 0);
 
+// Where the camera rests, and the view every shape is laid out for.
+const restingEye = camera.position.clone();
+const cameraTilt = Math.atan2(camera.position.y, camera.position.z);
+const cameraDist = Math.hypot(camera.position.y, camera.position.z);
+
 // Parallax — camera drifts slightly toward the input (mouse, touch drag or
 // device tilt — see parallax-input.js), always looking at origin
-const CAMERA_BASE = { x: 0, y: 1.5 };
 const PAR_SCALE = { x: 0.35, y: 0.18 };
 const PAR_EASE = 0.04;
 const parallaxInput = createParallaxInput();
 const par = { x: 0, y: 0 };
 
-const cameraTilt = Math.atan2(camera.position.y, camera.position.z);
-const cameraDist = Math.hypot(camera.position.y, camera.position.z);
+// Dragging (or holding and sliding a finger) orbits the camera around the
+// origin from where it rests — see orbit-drag.js. Parallax rides on top.
+const orbit = createOrbitDrag({ baseElevation: cameraTilt });
 
 function viewportGridSize() {
   const halfFov = (camera.fov * Math.PI) / 360;
@@ -119,7 +125,7 @@ function facingCameraIn(seconds, positions) {
 function makeShape(index, seconds) {
   return shapeGenerators[index](PARTICLE_COUNT, {
     yaw: yawFacingCameraIn(seconds),
-    viewer: camera.position,
+    viewer: restingEye,
   });
 }
 
@@ -214,11 +220,20 @@ function animate() {
     particles.advanceStart(departing.shape.advance, time - departing.born, eye);
   }
 
-  // Smooth parallax — lerp camera toward input-driven offset, keep looking at origin
+  // Smooth parallax — lerp camera toward input-driven offset — plus the
+  // drag's orbit, both as turns around the origin, which the camera keeps
+  // looking at. Parallax offsets are small enough to read as angles.
   par.x += (-parallaxInput.x * PAR_SCALE.x - par.x) * PAR_EASE;
   par.y += (parallaxInput.y * PAR_SCALE.y - par.y) * PAR_EASE;
-  camera.position.x = CAMERA_BASE.x + par.x;
-  camera.position.y = CAMERA_BASE.y + par.y;
+  orbit.update(dt);
+  const azimuth = orbit.azimuth + par.x / cameraDist;
+  const elevation = cameraTilt + orbit.elevation + par.y / cameraDist;
+  const distance = cameraDist * orbit.zoom;
+  camera.position.set(
+    distance * Math.cos(elevation) * Math.sin(azimuth),
+    distance * Math.sin(elevation),
+    distance * Math.cos(elevation) * Math.cos(azimuth),
+  );
   camera.lookAt(0, 0, 0);
 
   renderer.render(scene, camera);

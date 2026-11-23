@@ -16,6 +16,18 @@ body {
   width: 100vw;
   height: 100vh;
   display: block;
+  cursor: grab;
+}
+
+/* While a drag turns the scene (src/orbit-drag.js): the grabbing hand
+   everywhere, and no text selection or long-press callout under a held
+   finger. */
+html.is-orbiting,
+html.is-orbiting * {
+  cursor: grabbing !important;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* ─── Relay input — off-screen, never visible ────────────────── */
